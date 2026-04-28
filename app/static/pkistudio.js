@@ -2662,7 +2662,10 @@ details[open] > summary .node-line {
     };
   }
 
-  window.PkiStudio = { init };
+  window.PkiStudio = {
+    init,
+    version: '0.1.0'
+  };
 
   function autoInit() {
     if (defaultInstance || document.querySelector('script[data-pkistudio-auto-init="false"]')) return;
