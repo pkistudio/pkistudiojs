@@ -1,6 +1,6 @@
-# pkistudiojs
+# PkiStudioJS
 
-pkistudiojs is a browser-based ASN.1 DER viewer and editor. It parses DER and PEM data locally in the browser, displays it as a navigable tree, and provides tools for inspecting, copying, editing, deleting, and opening selected nodes.
+PkiStudioJS is a simplified JavaScript version of PkiStudio. It is a browser-based ASN.1 DER viewer and editor that parses DER and PEM data locally in the browser, displays it as a navigable tree, and provides tools for inspecting, copying, editing, deleting, and opening selected nodes.
 
 File contents are not uploaded to the server. The Node.js service only serves the static web application.
 
@@ -157,6 +157,10 @@ Clipboard reads require a browser context that permits the Clipboard API. In mos
 ## Operational Notes
 
 Browsers cannot allow a web page to open arbitrary local files automatically. Files must be selected by the user through the browser file picker, loaded from the clipboard, or loaded through an explicit editor file input.
+
+## License
+
+PkiStudioJS is licensed under the MIT License. See [LICENSE](LICENSE).
 
 ## HTTPS with Docker Compose and nginx
 
