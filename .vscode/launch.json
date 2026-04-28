@@ -1,0 +1,19 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Debug pkistudio in Chrome",
+      "type": "pwa-chrome",
+      "request": "launch",
+      "url": "http://localhost:8080/",
+      "webRoot": "${workspaceFolder}/app/static"
+    },
+    {
+      "name": "Debug pkistudio in Edge",
+      "type": "pwa-msedge",
+      "request": "launch",
+      "url": "http://localhost:8080/",
+      "webRoot": "${workspaceFolder}/app/static"
+    }
+  ]
+}
