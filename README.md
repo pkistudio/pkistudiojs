@@ -2,7 +2,7 @@
 
 PkiStudioJS is a simplified JavaScript version of PkiStudio. It is a browser-based ASN.1 DER viewer and editor that parses DER and PEM data locally in the browser, displays it as a navigable tree, and provides tools for inspecting, copying, editing, deleting, and opening selected nodes.
 
-A hosted version is available at https://www.pki.studio.
+A hosted version is available at https://pkistudio.github.io/pkistudiojs/.
 
 Current version: 0.1.2
 
