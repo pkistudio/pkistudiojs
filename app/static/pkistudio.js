@@ -1,5 +1,6 @@
 (() => {
   let defaultInstance = null;
+  const APP_VERSION = '0.1.2';
 
   const APP_STYLES = `:host {
   color-scheme: light;
@@ -670,6 +671,26 @@ details[open] > summary .node-line {
   width: min(560px, calc(100vw - 28px));
 }
 
+.about-panel {
+  width: min(380px, calc(100vw - 28px));
+}
+
+.about-name {
+  margin: 0 0 6px;
+  color: var(--text);
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.about-version {
+  margin-bottom: 8px;
+  font-family: Consolas, "Courier New", monospace;
+}
+
+.about-description {
+  margin-bottom: 10px;
+}
+
 .octet-panel textarea {
   width: 100%;
   min-height: 150px;
@@ -849,6 +870,7 @@ details[open] > summary .node-line {
       </div>
     </div>
     <button type="button" data-action="close">Close</button>
+    <button type="button" data-action="about">About</button>
   </nav>
 
   <section class="hero">
@@ -1021,6 +1043,17 @@ details[open] > summary .node-line {
       <button type="button" data-octet-action="cancel">Cancel</button>
     </div>
   </form>
+</div>
+
+<div id="aboutDialog" class="edit-dialog" hidden>
+  <section class="edit-panel about-panel" role="dialog" aria-labelledby="aboutTitle" aria-modal="true">
+    <p id="aboutTitle" class="about-name">PkiStudioJS</p>
+    <p class="about-version">Version ${APP_VERSION}</p>
+    <p class="about-description">Browser-based ASN.1 DER viewer and editor.</p>
+    <div class="edit-actions">
+      <button type="button" data-about-action="close">Close</button>
+    </div>
+  </section>
 </div>`;
 
   function resolveMount(mount) {
@@ -1092,6 +1125,7 @@ details[open] > summary .node-line {
     const octetHex = scope.querySelector('#octetHex');
     const octetFileInput = scope.querySelector('#octetFileInput');
     const octetError = scope.querySelector('#octetError');
+    const aboutDialog = scope.querySelector('#aboutDialog');
     
     const CLASS_NAMES = ['Universal', 'Application', 'Context-specific', 'Private'];
     const UNIVERSAL_TAGS = {
@@ -2184,6 +2218,15 @@ details[open] > summary .node-line {
       octetError.textContent = '';
       octetFileInput.value = '';
     }
+
+    function showAboutDialog() {
+      aboutDialog.hidden = false;
+      aboutDialog.querySelector('[data-about-action="close"]')?.focus();
+    }
+
+    function hideAboutDialog() {
+      aboutDialog.hidden = true;
+    }
     
     function updateTimeOffsetControls() {
       const useLocal = timeForm.querySelector('input[name="timeZone"]:checked')?.value === 'local';
@@ -2488,6 +2531,9 @@ details[open] > summary .node-line {
       } else if (button.dataset.action === 'close') {
         hideLoadMenu();
         closeDocument();
+      } else if (button.dataset.action === 'about') {
+        hideLoadMenu();
+        showAboutDialog();
       }
     });
     
@@ -2767,6 +2813,10 @@ details[open] > summary .node-line {
     editDialog.addEventListener('click', (event) => {
       if (event.target === editDialog) hideEditDialog();
     });
+
+    aboutDialog.addEventListener('click', (event) => {
+      if (event.target === aboutDialog || event.target.closest('[data-about-action="close"]')) hideAboutDialog();
+    });
     
     document.addEventListener('keydown', (event) => {
       if (event.key === 'Escape') {
@@ -2775,6 +2825,7 @@ details[open] > summary .node-line {
         hideEditDialog();
         hideTimeDialog();
         hideOctetDialog();
+        hideAboutDialog();
         hideLoadMenu();
       }
     });
@@ -2823,7 +2874,7 @@ details[open] > summary .node-line {
 
   window.PkiStudio = {
     init,
-    version: '0.1.1'
+    version: APP_VERSION
   };
 
   function autoInit() {

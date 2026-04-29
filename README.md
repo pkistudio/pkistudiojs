@@ -4,7 +4,7 @@ PkiStudioJS is a simplified JavaScript version of PkiStudio. It is a browser-bas
 
 A hosted version is available at https://www.pki.studio.
 
-Current version: 0.1.1
+Current version: 0.1.2
 
 File contents are not uploaded to the server. The Node.js service only serves the static web application.
 
@@ -85,6 +85,7 @@ Use the `Load` menu to import data:
 - `Load -> from Clipboard as PEM`: reads PEM text from the clipboard and parses it.
 - `Load -> from Clipboard as HEX`: reads a hexadecimal DER string from the clipboard and parses it.
 - `Close`: clears the current document and returns the viewer to the empty state.
+- `About`: displays the application name and version.
 
 The file picker accepts common certificate and ASN.1-related extensions, including `.der`, `.pem`, `.cer`, `.crt`, `.csr`, `.p7b`, `.p7c`, `.crl`, and `.bin`.
 
