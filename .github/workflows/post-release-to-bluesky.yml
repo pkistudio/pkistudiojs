@@ -1,0 +1,104 @@
+name: Post release to Bluesky
+
+on:
+  release:
+    types:
+      - published
+  workflow_dispatch:
+    inputs:
+      tag_name:
+        description: Release tag to mention in the post
+        required: true
+      release_url:
+        description: Release URL to include in the post
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  post:
+    runs-on: ubuntu-latest
+    env:
+      BLUESKY_HANDLE: ${{ secrets.BLUESKY_HANDLE }}
+      BLUESKY_APP_PASSWORD: ${{ secrets.BLUESKY_APP_PASSWORD }}
+      RELEASE_NAME: ${{ github.event.release.name || inputs.tag_name }}
+      RELEASE_TAG: ${{ github.event.release.tag_name || inputs.tag_name }}
+      RELEASE_URL: ${{ github.event.release.html_url || inputs.release_url }}
+    steps:
+      - name: Post release announcement
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const handle = process.env.BLUESKY_HANDLE;
+            const appPassword = process.env.BLUESKY_APP_PASSWORD;
+            const releaseName = process.env.RELEASE_NAME;
+            const releaseTag = process.env.RELEASE_TAG;
+            const releaseUrl = process.env.RELEASE_URL;
+
+            if (!handle || !appPassword) {
+              core.setFailed('Set BLUESKY_HANDLE and BLUESKY_APP_PASSWORD repository secrets.');
+              return;
+            }
+
+            if (!releaseTag || !releaseUrl) {
+              core.setFailed('Release tag and URL are required.');
+              return;
+            }
+
+            const title = releaseName && releaseName !== releaseTag
+              ? `${releaseName} (${releaseTag})`
+              : releaseTag;
+            const text = `PkiStudioJS ${title} has been released.\n${releaseUrl}`;
+
+            if (Array.from(text).length > 300) {
+              core.setFailed('The Bluesky post text is longer than 300 characters.');
+              return;
+            }
+
+            const urlStart = text.indexOf(releaseUrl);
+            const facets = [{
+              index: {
+                byteStart: Buffer.byteLength(text.slice(0, urlStart), 'utf8'),
+                byteEnd: Buffer.byteLength(text.slice(0, urlStart + releaseUrl.length), 'utf8'),
+              },
+              features: [{
+                $type: 'app.bsky.richtext.facet#link',
+                uri: releaseUrl,
+              }],
+            }];
+
+            async function bluesky(path, body, jwt) {
+              const response = await fetch(`https://bsky.social/xrpc/${path}`, {
+                method: 'POST',
+                headers: {
+                  'content-type': 'application/json',
+                  ...(jwt ? { authorization: `Bearer ${jwt}` } : {}),
+                },
+                body: JSON.stringify(body),
+              });
+
+              if (!response.ok) {
+                throw new Error(`${path} failed: ${response.status} ${await response.text()}`);
+              }
+
+              return response.json();
+            }
+
+            const session = await bluesky('com.atproto.server.createSession', {
+              identifier: handle,
+              password: appPassword,
+            });
+
+            await bluesky('com.atproto.repo.createRecord', {
+              repo: session.did,
+              collection: 'app.bsky.feed.post',
+              record: {
+                $type: 'app.bsky.feed.post',
+                text,
+                facets,
+                createdAt: new Date().toISOString(),
+              },
+            }, session.accessJwt);
+
+            core.info(`Posted to Bluesky: ${text}`);

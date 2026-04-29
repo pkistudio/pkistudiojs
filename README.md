@@ -169,6 +169,15 @@ Clipboard reads require a browser context that permits the Clipboard API. In mos
 
 Browsers cannot allow a web page to open arbitrary local files automatically. Files must be selected by the user through the browser file picker, loaded from the clipboard, or loaded through an explicit editor file input.
 
+## Release Announcements
+
+New GitHub releases are announced on Bluesky by `.github/workflows/post-release-to-bluesky.yml`. To enable posting, create a Bluesky app password and add these repository secrets in GitHub:
+
+- `BLUESKY_HANDLE`: the Bluesky handle to post from, such as `example.bsky.social`
+- `BLUESKY_APP_PASSWORD`: an app password created from Bluesky settings
+
+The workflow runs when a GitHub release is published. It can also be tested manually from the Actions tab with a release tag and release URL.
+
 ## License
 
 PkiStudioJS is licensed under the MIT License. See [LICENSE](LICENSE).
