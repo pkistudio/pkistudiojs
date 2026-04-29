@@ -876,6 +876,8 @@ details[open] > summary .node-line {
 
 <div id="nodeContextMenu" class="node-context-menu" role="menu" hidden>
   <button type="button" role="menuitem" data-node-action="edit">Edit</button>
+  <button type="button" role="menuitem" data-node-action="insert-before">Insert before</button>
+  <button type="button" role="menuitem" data-node-action="add-child">Add</button>
   <button type="button" role="menuitem" data-node-action="delete">Delete</button>
   <div class="context-menu-group" role="none">
     <button type="button" class="context-submenu-trigger" role="menuitem" data-node-action="send-to" aria-haspopup="menu" aria-expanded="false">Send to</button>
@@ -1121,6 +1123,7 @@ details[open] > summary .node-line {
     let nodeById = new Map();
     let activeContextNodeId = null;
     let activeDerNodeId = null;
+    let activeDerMode = 'view';
     let activeEditNodeId = null;
     let activeTimeNodeId = null;
     let activeOctetNodeId = null;
@@ -1579,8 +1582,7 @@ details[open] > summary .node-line {
     
     function getTagName(node) {
       if (node.tagClass === 0) return UNIVERSAL_TAGS[node.tagNumber] || `Universal ${node.tagNumber}`;
-      if (node.tagClass === 2) return `[${node.tagNumber}] Context-specific`;
-      return `${CLASS_NAMES[node.tagClass]} ${node.tagNumber}`;
+      return `[${node.tagNumber}] ${CLASS_NAMES[node.tagClass]}`;
     }
     
     function formatDisplayValue(node) {
@@ -1886,6 +1888,10 @@ details[open] > summary .node-line {
       indexNodes(currentNodes);
       renderCurrentDocument();
     }
+
+    function getCheckedValue(name) {
+      return scope.querySelector(`input[name="${name}"]:checked`)?.value || '';
+    }
     
     function updateNodeValueBytes(nodeId, valueBytes) {
       const node = nodeById.get(nodeId);
@@ -1909,6 +1915,57 @@ details[open] > summary .node-line {
       }
     
       return nodes.some((node) => removeNodeById(node.children, nodeId));
+    }
+
+    function insertNodeBeforeById(nodes, nodeId, newNode) {
+      const index = nodes.findIndex((node) => node.id === nodeId);
+      if (index >= 0) {
+        nodes.splice(index, 0, newNode);
+        return true;
+      }
+
+      return nodes.some((node) => insertNodeBeforeById(node.children, nodeId, newNode));
+    }
+
+    function createNodeFromDerForm() {
+      const tagClass = Number(getCheckedValue('derClass'));
+      const constructed = getCheckedValue('derMethod') === 'constructed';
+      const tagNumber = Number(derIndex.value);
+
+      if (!Number.isInteger(tagClass) || tagClass < 0 || tagClass > 3) throw new Error('Select a valid class');
+      if (!Number.isSafeInteger(tagNumber) || tagNumber < 0) throw new Error('Index must be a non-negative integer');
+
+      const valueBytes = constructed ? new Uint8Array() : hexToBytesAllowEmpty(derHex.value);
+      return {
+        tagClass,
+        constructed,
+        tagNumber,
+        start: 0,
+        headerLength: 0,
+        length: valueBytes.length,
+        valueStart: 0,
+        valueEnd: valueBytes.length,
+        end: 0,
+        depth: 0,
+        children: [],
+        encapsulated: false,
+        valueBytes,
+        dirty: true,
+        validationError: ''
+      };
+    }
+
+    function insertNodeBefore(targetNodeId, newNode) {
+      if (!insertNodeBeforeById(currentNodes, targetNodeId, newNode)) throw new Error('The insertion point was not found');
+      rebuildDocumentFromModel();
+    }
+
+    function addChildNode(parentNodeId, newNode) {
+      const parent = nodeById.get(parentNodeId);
+      if (!parent) throw new Error('The parent node was not found');
+      if (!parent.constructed) throw new Error('Children can only be added to structured nodes');
+      parent.children.push(newNode);
+      rebuildDocumentFromModel();
     }
     
     function deleteNode(nodeId) {
@@ -2105,6 +2162,7 @@ details[open] > summary .node-line {
     
     function hideDerDialog() {
       activeDerNodeId = null;
+      activeDerMode = 'view';
       derDialog.hidden = true;
     }
     
@@ -2133,12 +2191,45 @@ details[open] > summary .node-line {
       timeOffsetHours.disabled = !useLocal;
       timeOffsetMinutes.disabled = !useLocal;
     }
+
+    function setDerDialogCreateMode(createMode) {
+      for (const input of derForm.querySelectorAll('input[name="derClass"], input[name="derMethod"]')) {
+        input.disabled = !createMode;
+      }
+
+      derIndex.readOnly = !createMode;
+      derHex.readOnly = !createMode;
+      derForm.querySelector('[data-der-action="edit-content"]').hidden = createMode;
+    }
+
+    function updateDerCreatePreview() {
+      if (activeDerMode === 'view') return;
+
+      const constructed = getCheckedValue('derMethod') === 'constructed';
+      derHex.readOnly = constructed;
+      if (constructed) {
+        derLength.value = '0';
+        derValuePreview.textContent = 'Structured content starts empty.';
+        return;
+      }
+
+      try {
+        const valueBytes = hexToBytesAllowEmpty(derHex.value);
+        derLength.value = String(valueBytes.length);
+        derValuePreview.textContent = valueBytes.length ? `${valueBytes.length} byte${valueBytes.length === 1 ? '' : 's'}` : '(empty)';
+      } catch (error) {
+        derLength.value = '';
+        derValuePreview.textContent = error.message;
+      }
+    }
     
     function showDerDialog(node) {
+      activeDerMode = 'view';
       activeDerNodeId = node.id;
       const tagName = getTagName(node);
       const valueBytes = getNodeValueBytes(node);
       const editButton = derForm.querySelector('[data-der-action="edit-content"]');
+      setDerDialogCreateMode(false);
     
       derTitle.textContent = 'Edit DER';
       derIndex.value = node.tagNumber;
@@ -2153,6 +2244,23 @@ details[open] > summary .node-line {
       setRadioValue('derMethod', node.constructed ? 'constructed' : 'primitive');
       derDialog.hidden = false;
       editButton.focus();
+    }
+
+    function showCreateDerDialog(mode, node) {
+      activeDerMode = mode;
+      activeDerNodeId = node.id;
+      setDerDialogCreateMode(true);
+      derTitle.textContent = mode === 'add-child' ? `Add child to ${getTagName(node)}` : `Insert before ${getTagName(node)}`;
+      derIndex.value = '4';
+      derIndefinite.checked = false;
+      derTagName.textContent = 'OCTET STRING';
+      derHex.value = '';
+      setRadioValue('derClass', 0);
+      setRadioValue('derMethod', 'primitive');
+      updateDerCreatePreview();
+      derDialog.hidden = false;
+      derIndex.focus();
+      derIndex.select();
     }
     
     function showEditDialog(node) {
@@ -2240,7 +2348,9 @@ details[open] > summary .node-line {
     
     function showNodeContextMenu(nodeId, x, y) {
       const node = nodeById.get(nodeId);
+      const addButton = nodeContextMenu.querySelector('[data-node-action="add-child"]');
       const extractedButton = nodeContextMenu.querySelector('[data-node-action="send-new-window-extracted"]');
+      addButton.hidden = !node?.constructed;
       extractedButton.hidden = !(node?.encapsulated && node.children.length > 0);
       activeContextNodeId = nodeId;
       setSendToSubmenuOpen(false);
@@ -2423,6 +2533,10 @@ details[open] > summary .node-line {
     
       if (button.dataset.nodeAction === 'edit') {
         showDerDialog(node);
+      } else if (button.dataset.nodeAction === 'insert-before') {
+        showCreateDerDialog('insert-before', node);
+      } else if (button.dataset.nodeAction === 'add-child') {
+        if (node.constructed) showCreateDerDialog('add-child', node);
       } else if (button.dataset.nodeAction === 'send-new-window') {
         openNodeSubtreeWindow(node);
       } else if (button.dataset.nodeAction === 'send-new-window-extracted') {
@@ -2462,7 +2576,52 @@ details[open] > summary .node-line {
     
     derForm.addEventListener('submit', (event) => {
       event.preventDefault();
+      if (activeDerMode === 'insert-before' || activeDerMode === 'add-child') {
+        try {
+          const targetNodeId = activeDerNodeId;
+          const newNode = createNodeFromDerForm();
+          const tagName = getTagName(newNode);
+          if (activeDerMode === 'insert-before') {
+            insertNodeBefore(targetNodeId, newNode);
+            fileNotice.textContent = `Inserted ${tagName}.`;
+          } else {
+            addChildNode(targetNodeId, newNode);
+            fileNotice.textContent = `Added ${tagName}.`;
+          }
+          hideDerDialog();
+        } catch (error) {
+          derValuePreview.textContent = error.message;
+        }
+        return;
+      }
+
       hideDerDialog();
+    });
+
+    derForm.addEventListener('input', (event) => {
+      if (activeDerMode === 'view') return;
+      if (event.target === derIndex) {
+        const previewNode = {
+          tagClass: Number(getCheckedValue('derClass')),
+          tagNumber: Number(derIndex.value),
+          constructed: getCheckedValue('derMethod') === 'constructed'
+        };
+        derTagName.textContent = Number.isSafeInteger(previewNode.tagNumber) && previewNode.tagNumber >= 0 ? getTagName(previewNode) : '';
+      }
+      updateDerCreatePreview();
+    });
+
+    derForm.addEventListener('change', (event) => {
+      if (activeDerMode === 'view') return;
+      if (event.target.name === 'derClass' || event.target.name === 'derMethod') {
+        const previewNode = {
+          tagClass: Number(getCheckedValue('derClass')),
+          tagNumber: Number(derIndex.value),
+          constructed: getCheckedValue('derMethod') === 'constructed'
+        };
+        derTagName.textContent = Number.isSafeInteger(previewNode.tagNumber) && previewNode.tagNumber >= 0 ? getTagName(previewNode) : '';
+      }
+      updateDerCreatePreview();
     });
     
     derForm.addEventListener('click', (event) => {
