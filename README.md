@@ -4,7 +4,7 @@ PkiStudioJS is a simplified JavaScript version of PkiStudio. It is a browser-bas
 
 A hosted version is available at https://www.pki.studio.
 
-Current version: 0.1.0
+Current version: 0.1.1
 
 File contents are not uploaded to the server. The Node.js service only serves the static web application.
 
@@ -109,10 +109,16 @@ The viewer displays:
 Click a tree item icon to open its context menu. The menu order is:
 
 - `Edit`
+- `Insert before`
+- `Add` for structured items
 - `Delete`
 - `Send to`
 
 `Edit` opens the DER inspector for the selected node. The inspector shows identifier details, class, method, tag index, length, tag name, and a hexadecimal content preview. For editable nodes, `Edit...` opens the appropriate content editor.
+
+`Insert before` creates a new sibling immediately before the selected node. New items default to an empty `OCTET STRING`.
+
+`Add` appears only for structured nodes and creates a new child item under the selected node. New child items also default to an empty `OCTET STRING`.
 
 `Delete` removes the selected node from the current document and re-encodes the remaining tree.
 
