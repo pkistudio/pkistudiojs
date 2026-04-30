@@ -1,7 +1,7 @@
 ---
 description: "Use when: running the pkistudio issue-to-release workflow, including issue creation, branch work, PR, merge, tag, release, and Actions checks."
 name: "pkistudio release workflow"
-argument-hint: "[version|TBD] <short feature or fix summary>"
+argument-hint: "[version|TBD] [#issue] <short feature or fix summary>"
 agent: "agent"
 ---
 
@@ -16,9 +16,11 @@ Expected invocation examples:
 /release v0.1.4 "Fix HEX clipboard parsing"
 /release TBD "Improve OID display"
 /release "Improve OID display"
+/release TBD #12
+/release 0.1.5 #12 "Implement requested export option"
 ```
 
-The release version may be omitted or set to `TBD` when development should proceed before the final version is known. If the feature summary, desired release scope, or whether a known-looking first argument is a version is unclear, ask concise clarifying questions before making changes. Otherwise proceed proactively.
+The release version may be omitted or set to `TBD` when development should proceed before the final version is known. If an existing issue number is supplied, use that issue instead of creating a duplicate issue. If the feature summary, desired release scope, issue reference, or whether a known-looking first argument is a version is unclear, ask concise clarifying questions before making changes. Otherwise proceed proactively.
 
 ## Required Safety Rules
 
@@ -38,6 +40,7 @@ The release version may be omitted or set to `TBD` when development should proce
 Derive these from the invocation when possible:
 
 - `version`: release version, normalized to both `X.Y.Z` and `vX.Y.Z` forms when known. If omitted or `TBD`, treat it as pending and do not create tags, publish releases, or make final version bumps until the release step.
+- `issueNumber`: existing GitHub issue number when the invocation includes a `#<number>` reference or an unambiguous issue URL.
 - `summary`: short feature or fix summary.
 - `issueBody`: issue requirements. If the user supplied detailed requirements, preserve them.
 - `verificationPlan`: expected local checks. If not supplied, infer from the changed area.
@@ -52,8 +55,9 @@ Derive these from the invocation when possible:
    - If `version` is pending, record that the final version must be chosen before version bumps, tagging, or release publication.
 
 2. Create Issue
-   - Create a GitHub issue describing the requested change.
-   - Include summary, requirements, expected behavior, and verification notes.
+   - If `issueNumber` is known, fetch the existing issue and use its title, body, requirements, labels, and discussion as the source request. Do not create a new issue.
+   - If no existing issue is supplied, create a GitHub issue describing the requested change.
+   - For new issues, include summary, requirements, expected behavior, and verification notes.
    - Record the issue number for the branch, PR body, and final report.
    - Prefer GitHub tools when available. If the GitHub CLI is unavailable and `GITHUB_TOKEN` is set, use the GitHub REST API with `curl`. Never print token values.
 

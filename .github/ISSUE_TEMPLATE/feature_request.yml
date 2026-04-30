@@ -1,0 +1,60 @@
+name: Feature request
+description: Suggest an improvement or new capability for PkiStudioJS
+title: "[Feature]: "
+labels:
+  - enhancement
+  - needs-triage
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for helping improve PkiStudioJS. Please share the workflow or ASN.1 data shape you want the app to support.
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem are you trying to solve?
+      description: Describe the user need, limitation, or workflow friction.
+      placeholder: I want to...
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: What would you like to happen?
+      description: Describe the behavior, menu item, view, parser support, export format, or other change you are requesting.
+      placeholder: Add a way to...
+    validations:
+      required: true
+  - type: textarea
+    id: examples
+    attributes:
+      label: Example input or output
+      description: If relevant, include a small DER/PEM/HEX sample, expected tree text, screenshots, or links to public test data. Do not include private keys, passwords, or confidential certificate data.
+      render: text
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      description: Which part of PkiStudioJS does this affect most?
+      options:
+        - Loading data
+        - ASN.1 parsing
+        - Tree display
+        - Editing DER
+        - Clipboard or export
+        - Documentation
+        - Release or deployment
+        - Other
+    validations:
+      required: true
+  - type: input
+    id: browser
+    attributes:
+      label: Browser and environment
+      description: Optional, but helpful for UI or clipboard-related requests.
+      placeholder: Chrome 124 on Windows, Safari on macOS, Firefox on Linux, etc.
+  - type: textarea
+    id: additional-context
+    attributes:
+      label: Additional context
+      description: Add anything else that would help evaluate or implement the request.
