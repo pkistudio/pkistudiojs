@@ -1,10 +1,10 @@
 # PkiStudioJS
 
-PkiStudioJS is a simplified JavaScript version of PkiStudio. It is a browser-based ASN.1 DER viewer and editor that parses DER and PEM data locally in the browser, displays it as a navigable tree, and provides tools for inspecting, copying, editing, deleting, and opening selected nodes.
+PkiStudioJS is a simplified JavaScript version of PkiStudio. It is a browser-based ASN.1 DER/BER viewer and editor that parses DER, BER, and PEM data locally in the browser, displays it as a navigable tree, and provides tools for inspecting, copying, editing, deleting, and opening selected nodes.
 
 A hosted version is available at https://pkistudio.github.io/pkistudiojs/.
 
-Current version: 0.1.2
+Current version: 0.1.3
 
 File contents are not uploaded to the server. The Node.js service only serves the static web application.
 
@@ -91,7 +91,7 @@ The file picker accepts common certificate and ASN.1-related extensions, includi
 
 ## Supported Data
 
-pkistudio supports ASN.1 DER binaries and PEM files. PEM input is base64-decoded in the browser before parsing.
+pkistudio supports ASN.1 DER binaries, BER constructed values with indefinite length, and PEM files. PEM input is base64-decoded in the browser before parsing.
 
 The viewer displays:
 
@@ -103,6 +103,7 @@ The viewer displays:
 - Compact hexadecimal value previews
 - OID names loaded from `app/static/oids.json` when available
 - Nested constructed values as expandable tree nodes
+- BER indefinite-length constructed values as `TAG (Indefinite)` with derived `EndOfContent (0)` terminators
 - Encapsulated DER inside supported `BIT STRING` and `OCTET STRING` values
 
 ## Tree Interaction
@@ -121,7 +122,7 @@ Click a tree item icon to open its context menu. The menu order is:
 
 `Add` appears only for structured nodes and creates a new child item under the selected node. New child items also default to an empty `OCTET STRING`.
 
-`Delete` removes the selected node from the current document and re-encodes the remaining tree.
+`Delete` removes the selected node from the current document and re-encodes the remaining tree. Derived `EndOfContent (0)` terminators are controlled by their parent indefinite-length setting and cannot be deleted directly.
 
 ## Send To Menu
 
@@ -136,7 +137,7 @@ New-window actions transfer DER bytes through browser `localStorage` and add a t
 
 ## Editing
 
-pkistudio can edit primitive nodes and then re-encode the DER tree. Constructed nodes such as `SEQUENCE` and `SET` are inspectable but are not edited directly.
+pkistudio can edit primitive nodes and then re-encode the DER tree. Constructed nodes such as `SEQUENCE` and `SET` are inspectable but are not edited directly. Their length mode can be switched between definite and indefinite in the DER inspector.
 
 Editable text-like values include:
 
@@ -161,7 +162,7 @@ Primitive nodes without a specialized editor are edited as raw hexadecimal value
 
 ## Validation and Error Handling
 
-The parser enforces DER constraints such as definite lengths, valid length boundaries, high-tag-number decoding, and matching re-encoded bytes. User-facing errors are shown in English in the viewer or notice area.
+The parser enforces DER/BER constraints such as valid length boundaries, high-tag-number decoding, matching EndOfContent terminators for indefinite-length values, and matching re-encoded bytes. User-facing errors are shown in English in the viewer or notice area.
 
 Clipboard reads require a browser context that permits the Clipboard API. In most browsers this means serving the page from a secure context such as HTTPS or localhost. Clipboard writes use the Clipboard API when available and fall back to a browser copy command when possible.
 
