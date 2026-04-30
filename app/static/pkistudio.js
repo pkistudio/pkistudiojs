@@ -860,7 +860,7 @@ details[open] > summary .node-line {
 }`;
 
   const APP_MARKUP = `<main>
-  <nav class="menu" aria-label="File actions">
+  <nav class="menu" aria-label="Application actions">
     <div class="menu-group">
       <button type="button" data-action="toggle-load-menu" aria-haspopup="menu" aria-expanded="false">Load</button>
       <div id="loadMenu" class="submenu" role="menu" hidden>
@@ -870,6 +870,13 @@ details[open] > summary .node-line {
       </div>
     </div>
     <button type="button" data-action="close">Close</button>
+    <div class="menu-group">
+      <button type="button" data-action="toggle-tools-menu" aria-haspopup="menu" aria-expanded="false">Tools</button>
+      <div id="toolsMenu" class="submenu" role="menu" hidden>
+        <button type="button" role="menuitem" data-action="expand-all">Expand All</button>
+        <button type="button" role="menuitem" data-action="collapse-all">Collapse All</button>
+      </div>
+    </div>
     <button type="button" data-action="about">About</button>
   </nav>
 
@@ -1089,6 +1096,7 @@ details[open] > summary .node-line {
     const dropZone = scope.querySelector('#dropZone');
     const menu = scope.querySelector('.menu');
     const loadMenu = scope.querySelector('#loadMenu');
+    const toolsMenu = scope.querySelector('#toolsMenu');
     const viewer = scope.querySelector('#viewer');
     const fileNotice = scope.querySelector('#fileNotice');
     const nodeContextMenu = scope.querySelector('#nodeContextMenu');
@@ -2590,18 +2598,35 @@ details[open] > summary .node-line {
     
     loadOidNames();
     loadExpandedDocument();
+
+    function setAllTreeNodesOpen(open) {
+      for (const details of viewer.querySelectorAll('details.node')) details.open = open;
+      hideNodeContextMenu();
+      fileNotice.textContent = open ? 'Expanded all tree nodes.' : 'Collapsed all tree nodes.';
+    }
     
     function hideLoadMenu() {
       loadMenu.hidden = true;
       menu.querySelector('[data-action="toggle-load-menu"]')?.setAttribute('aria-expanded', 'false');
     }
+
+    function hideToolsMenu() {
+      toolsMenu.hidden = true;
+      menu.querySelector('[data-action="toggle-tools-menu"]')?.setAttribute('aria-expanded', 'false');
+    }
+
+    function hideTopMenus() {
+      hideLoadMenu();
+      hideToolsMenu();
+    }
     
-    function toggleLoadMenu() {
-      const button = menu.querySelector('[data-action="toggle-load-menu"]');
-      const willOpen = loadMenu.hidden;
-      loadMenu.hidden = !willOpen;
+    function toggleTopMenu(buttonAction, submenu) {
+      const button = menu.querySelector(`[data-action="${buttonAction}"]`);
+      const willOpen = submenu.hidden;
+      hideTopMenus();
+      submenu.hidden = !willOpen;
       button?.setAttribute('aria-expanded', String(willOpen));
-      if (willOpen) loadMenu.querySelector('button')?.focus();
+      if (willOpen) submenu.querySelector('button')?.focus();
     }
     
     menu.addEventListener('click', async (event) => {
@@ -2609,21 +2634,29 @@ details[open] > summary .node-line {
       if (!button) return;
     
       if (button.dataset.action === 'toggle-load-menu') {
-        toggleLoadMenu();
+        toggleTopMenu('toggle-load-menu', loadMenu);
+      } else if (button.dataset.action === 'toggle-tools-menu') {
+        toggleTopMenu('toggle-tools-menu', toolsMenu);
       } else if (button.dataset.action === 'open') {
-        hideLoadMenu();
+        hideTopMenus();
         fileInput.click();
       } else if (button.dataset.action === 'load-clipboard-pem') {
-        hideLoadMenu();
+        hideTopMenus();
         await loadClipboardAsPem();
       } else if (button.dataset.action === 'load-clipboard-hex') {
-        hideLoadMenu();
+        hideTopMenus();
         await loadClipboardAsHex();
+      } else if (button.dataset.action === 'expand-all') {
+        hideTopMenus();
+        setAllTreeNodesOpen(true);
+      } else if (button.dataset.action === 'collapse-all') {
+        hideTopMenus();
+        setAllTreeNodesOpen(false);
       } else if (button.dataset.action === 'close') {
-        hideLoadMenu();
+        hideTopMenus();
         closeDocument();
       } else if (button.dataset.action === 'about') {
-        hideLoadMenu();
+        hideTopMenus();
         showAboutDialog();
       }
     });
@@ -2929,19 +2962,19 @@ details[open] > summary .node-line {
         hideTimeDialog();
         hideOctetDialog();
         hideAboutDialog();
-        hideLoadMenu();
+        hideTopMenus();
       }
     });
     
     scope.addEventListener('click', (event) => {
       if (!event.target.closest('#nodeContextMenu')) hideNodeContextMenu();
-      if (!event.target.closest('.menu-group')) hideLoadMenu();
+      if (!event.target.closest('.menu-group')) hideTopMenus();
     });
     
     window.addEventListener('resize', hideNodeContextMenu);
     window.addEventListener('scroll', hideNodeContextMenu, true);
-    window.addEventListener('resize', hideLoadMenu);
-    window.addEventListener('scroll', hideLoadMenu, true);
+    window.addEventListener('resize', hideTopMenus);
+    window.addEventListener('scroll', hideTopMenus, true);
     
     fileInput.addEventListener('change', () => {
       const [file] = fileInput.files;
