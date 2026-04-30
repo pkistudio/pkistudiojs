@@ -1,7 +1,7 @@
 ---
 description: "Use when: running the pkistudio issue-to-release workflow, including issue creation, branch work, PR, merge, tag, release, and Actions checks."
 name: "pkistudio release workflow"
-argument-hint: "<version> <short feature or fix summary>"
+argument-hint: "[version|TBD] <short feature or fix summary>"
 agent: "agent"
 ---
 
@@ -14,9 +14,11 @@ Expected invocation examples:
 ```text
 /release 0.1.4 "Improve OID display"
 /release v0.1.4 "Fix HEX clipboard parsing"
+/release TBD "Improve OID display"
+/release "Improve OID display"
 ```
 
-If the version, feature summary, or desired release scope is unclear, ask concise clarifying questions before making changes. Otherwise proceed proactively.
+The release version may be omitted or set to `TBD` when development should proceed before the final version is known. If the feature summary, desired release scope, or whether a known-looking first argument is a version is unclear, ask concise clarifying questions before making changes. Otherwise proceed proactively.
 
 ## Required Safety Rules
 
@@ -35,7 +37,7 @@ If the version, feature summary, or desired release scope is unclear, ask concis
 
 Derive these from the invocation when possible:
 
-- `version`: release version, normalized to both `X.Y.Z` and `vX.Y.Z` forms.
+- `version`: release version, normalized to both `X.Y.Z` and `vX.Y.Z` forms when known. If omitted or `TBD`, treat it as pending and do not create tags, publish releases, or make final version bumps until the release step.
 - `summary`: short feature or fix summary.
 - `issueBody`: issue requirements. If the user supplied detailed requirements, preserve them.
 - `verificationPlan`: expected local checks. If not supplied, infer from the changed area.
@@ -46,7 +48,8 @@ Derive these from the invocation when possible:
    - Confirm the repository is `pkistudio/pkistudiojs` unless the user intentionally targets another repo.
    - Run a clean working tree check.
    - Confirm the current default branch and remote.
-   - Check existing tags so the requested release version does not already exist.
+   - If `version` is known, check existing tags so the requested release version does not already exist.
+   - If `version` is pending, record that the final version must be chosen before version bumps, tagging, or release publication.
 
 2. Create Issue
    - Create a GitHub issue describing the requested change.
@@ -60,7 +63,9 @@ Derive these from the invocation when possible:
 
 4. Implement
    - Read the relevant files before editing.
-   - Update app code, documentation, and version references together when the change is release-worthy.
+   - Update app code and documentation for the requested behavior.
+   - If `version` is known and the change is release-worthy, update version references together.
+   - If `version` is pending, leave existing released version references unchanged during implementation and note the deferred version bump in the issue and PR.
    - For pkistudio version bumps, update at least:
      - `app/static/pkistudio.js` `APP_VERSION`
      - `README.md` current version and any relevant feature documentation
@@ -93,6 +98,7 @@ Derive these from the invocation when possible:
 
 8. Wait for User Confirmation
    - Ask the user to confirm their own manual check before merge/release.
+   - If `version` is pending, ask the user to choose the final release version before continuing to merge/release steps that require version metadata.
    - When they say to proceed, continue.
 
 9. Merge PR
@@ -102,6 +108,9 @@ Derive these from the invocation when possible:
 
 10. Tag and Release
     - Switch to `main`, fetch, and fast-forward pull.
+      - If `version` is pending, stop and ask for the final version before changing files, tagging, or publishing a release.
+      - Once the final version is chosen, normalize it to both `X.Y.Z` and `vX.Y.Z` forms and check that the tag does not already exist.
+      - If version references were deferred, create a focused version bump commit on `main` or on a release-prep branch/PR if the user wants review before publication.
     - Create an annotated tag `vX.Y.Z` on the merged `main` commit.
     - Push the tag.
     - Create a GitHub Release named `vX.Y.Z` with release notes summarizing user-facing changes and referencing the issue.
