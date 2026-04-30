@@ -1,6 +1,6 @@
 (() => {
   let defaultInstance = null;
-  const APP_VERSION = '0.1.2';
+  const APP_VERSION = '0.1.3';
 
   const APP_STYLES = `:host {
   color-scheme: light;
@@ -945,7 +945,7 @@ details[open] > summary .node-line {
       <legend>Length</legend>
       <div class="der-length-row">
         <label><input id="derIndefinite" type="checkbox" disabled /> Indefinite</label>
-        <input id="derLength" type="number" readonly />
+        <input id="derLength" type="text" readonly />
       </div>
     </fieldset>
     <fieldset class="der-group">
@@ -1297,6 +1297,7 @@ details[open] > summary .node-line {
     
     function encodeNode(node) {
       const value = encodeValue(node);
+      if (node.indefinite) return concatBytes([encodeIdentifier(node), new Uint8Array([0x80]), value, new Uint8Array([0x00, 0x00])]);
       return concatBytes([encodeIdentifier(node), encodeLength(value.length), value]);
     }
     
@@ -1615,8 +1616,13 @@ details[open] > summary .node-line {
     }
     
     function getTagName(node) {
+      if (node.eoc) return 'EndOfContent';
       if (node.tagClass === 0) return UNIVERSAL_TAGS[node.tagNumber] || `Universal ${node.tagNumber}`;
       return `[${node.tagNumber}] ${CLASS_NAMES[node.tagClass]}`;
+    }
+
+    function formatLengthText(node) {
+      return node.indefinite ? 'Indefinite' : String(node.length);
     }
     
     function formatDisplayValue(node) {
@@ -1712,16 +1718,20 @@ details[open] > summary .node-line {
     function parseLength(bytes, offset, end) {
       if (offset >= end) throw new Error(`offset ${offset}: missing length`);
       const first = bytes[offset++];
-      if ((first & 0x80) === 0) return { length: first, offset };
+      if ((first & 0x80) === 0) return { length: first, offset, indefinite: false };
     
       const octets = first & 0x7f;
-      if (octets === 0) throw new Error(`offset ${offset - 1}: indefinite length is not allowed in DER`);
+      if (octets === 0) return { length: 0, offset, indefinite: true };
       if (octets > 6) throw new Error(`offset ${offset - 1}: length is too large`);
       if (offset + octets > end) throw new Error(`offset ${offset - 1}: length ends before all bytes are available`);
     
       let length = 0;
       for (let index = 0; index < octets; index += 1) length = (length * 256) + bytes[offset++];
-      return { length, offset };
+      return { length, offset, indefinite: false };
+    }
+
+    function isEndOfContent(bytes, offset, end) {
+      return offset + 2 <= end && bytes[offset] === 0x00 && bytes[offset + 1] === 0x00;
     }
     
     function parseIdentifier(bytes, offset, end) {
@@ -1749,32 +1759,47 @@ details[open] > summary .node-line {
     }
     
     function parseElement(bytes, offset, end, depth = 0) {
+      if (isEndOfContent(bytes, offset, end)) throw new Error(`offset ${offset}: unexpected EndOfContent outside an indefinite-length value`);
+
       const start = offset;
       const identifier = parseIdentifier(bytes, offset, end);
       offset = identifier.offset;
       const lengthInfo = parseLength(bytes, offset, end);
       offset = lengthInfo.offset;
+      if (lengthInfo.indefinite && !identifier.constructed) throw new Error(`offset ${start}: indefinite length is only supported for constructed values`);
+
       const valueStart = offset;
-      const valueEnd = valueStart + lengthInfo.length;
+      let valueEnd = valueStart + lengthInfo.length;
+      let endOffset = valueEnd;
+      let children = [];
+
+      if (lengthInfo.indefinite) {
+        const parsed = parseElementsUntilEndOfContent(bytes, valueStart, end, depth + 1);
+        children = parsed.nodes;
+        valueEnd = parsed.eocStart;
+        endOffset = parsed.offset;
+      }
+
       if (valueEnd > end) throw new Error(`offset ${start}: value exceeds the input range`);
     
       const node = {
         ...identifier,
         start,
         headerLength: valueStart - start,
-        length: lengthInfo.length,
+        length: valueEnd - valueStart,
+        indefinite: lengthInfo.indefinite,
         valueStart,
         valueEnd,
-        end: valueEnd,
+        end: endOffset,
         depth,
-        children: [],
+        children,
         encapsulated: false,
         valueBytes: bytes.slice(valueStart, valueEnd),
         dirty: false,
         validationError: ''
       };
     
-      if (node.constructed) {
+      if (node.constructed && !node.indefinite) {
         node.children = parseElements(bytes, valueStart, valueEnd, depth + 1);
       } else if (node.tagClass === 0 && (node.tagNumber === 3 || node.tagNumber === 4)) {
         const nestedStart = node.tagNumber === 3 ? valueStart + 1 : valueStart;
@@ -1793,6 +1818,21 @@ details[open] > summary .node-line {
       }
     
       return node;
+    }
+
+    function parseElementsUntilEndOfContent(bytes, offset, end, depth = 0) {
+      const nodes = [];
+
+      while (offset < end) {
+        if (isEndOfContent(bytes, offset, end)) return { nodes, offset: offset + 2, eocStart: offset };
+
+        const node = parseElement(bytes, offset, end, depth);
+        if (node.end <= offset) throw new Error(`offset ${offset}: parser could not advance`);
+        nodes.push(node);
+        offset = node.end;
+      }
+
+      throw new Error(`offset ${offset}: missing EndOfContent for indefinite-length value`);
     }
     
     function indexNodes(nodes) {
@@ -1827,7 +1867,31 @@ details[open] > summary .node-line {
     }
     
     function getVisibleChildren(node) {
-      return node.encapsulated ? [] : node.children;
+      if (node.encapsulated) return [];
+      if (!node.indefinite) return node.children;
+      return [...node.children, createEndOfContentNode(node)];
+    }
+
+    function createEndOfContentNode(parent) {
+      return {
+        id: `${parent.id}-eoc`,
+        eoc: true,
+        tagClass: 0,
+        constructed: false,
+        tagNumber: 0,
+        start: parent.valueEnd,
+        headerLength: 2,
+        length: 0,
+        valueStart: parent.valueEnd + 2,
+        valueEnd: parent.valueEnd + 2,
+        end: parent.valueEnd + 2,
+        depth: parent.depth + 1,
+        children: [],
+        encapsulated: false,
+        valueBytes: new Uint8Array(),
+        dirty: false,
+        validationError: ''
+      };
     }
     
     function getNodeLineParts(node) {
@@ -1838,7 +1902,7 @@ details[open] > summary .node-line {
       const encapsulatedLabel = getEncapsulatedLabel(node);
       return [
         tagName,
-        `(${node.length})`,
+        `(${formatLengthText(node)})`,
         value,
         hex ? `// ${hex}` : '',
         oidComment ? `// ${oidComment}` : '',
@@ -1866,11 +1930,12 @@ details[open] > summary .node-line {
       const hexMarkup = hex ? `<span class="hex">// ${escapeHtml(hex)}</span>` : '';
       const oidMarkup = oidComment ? `<span class="comment">// ${escapeHtml(oidComment)}</span>` : '';
       const encapsulated = encapsulatedLabel ? `<span class="pill constructed">${escapeHtml(encapsulatedLabel)}</span>` : '';
+      const iconAttributes = node.eoc ? '' : `data-node-icon data-node-id="${node.id}"`;
       const nodeLineContent = isTruncated
         ? `<span class="tag">${escapeHtml(truncatedLineText)}</span>`
         : `
               <span class="tag">${escapeHtml(tagName)}</span>
-              <span class="pill">(${node.length})</span>
+            <span class="pill">(${escapeHtml(formatLengthText(node))})</span>
               ${valueMarkup}
               ${hexMarkup}
               ${oidMarkup}
@@ -1885,7 +1950,7 @@ details[open] > summary .node-line {
         <details class="node"${open}>
           <summary>
             <span class="node-toggle" data-node-toggle aria-hidden="true"><span class="toggle-closed">+</span><span class="toggle-open">−</span></span>
-            <span class="icon ${icon}" data-node-icon data-node-id="${node.id}" aria-hidden="true"></span>
+            <span class="icon ${icon}" ${iconAttributes} aria-hidden="true"></span>
             <span class="node-line">
               ${nodeLineContent}
             </span>
@@ -1984,6 +2049,7 @@ details[open] > summary .node-line {
         children: [],
         encapsulated: false,
         valueBytes,
+        indefinite: constructed && derIndefinite.checked,
         dirty: true,
         validationError: ''
       };
@@ -2001,10 +2067,19 @@ details[open] > summary .node-line {
       parent.children.push(newNode);
       rebuildDocumentFromModel();
     }
+
+    function updateNodeIndefinite(nodeId, indefinite) {
+      const node = nodeById.get(nodeId);
+      if (!node) throw new Error('The node to update was not found');
+      if (!node.constructed) throw new Error('Only structured nodes can use indefinite length');
+      node.indefinite = indefinite;
+      rebuildDocumentFromModel();
+    }
     
     function deleteNode(nodeId) {
       const node = nodeById.get(nodeId);
       if (!node) throw new Error('The node to delete was not found');
+      if (node.eoc) throw new Error('EndOfContent is controlled by the parent indefinite length setting');
       const tagName = getTagName(node);
       if (!removeNodeById(currentNodes, nodeId)) throw new Error('The node to delete could not be removed');
     
@@ -2104,9 +2179,16 @@ details[open] > summary .node-line {
     }
     
     function formatNodeTreeText(node, depth = 0) {
-      const indent = '  '.repeat(depth);
+      const indent = '    '.repeat(depth);
       const valueDump = formatNodeTreeValueDump(node, depth + 1);
       if (valueDump) {
+        if (!node.constructed && node.tagNumber !== 3 && node.tagNumber !== 4) {
+          return [
+            `${indent}${formatNodeTreeHeaderText(node)}`,
+            valueDump
+          ].join('\n');
+        }
+
         return [
           `${indent}${formatNodeTreeHeaderText(node)} {`,
           valueDump,
@@ -2125,19 +2207,21 @@ details[open] > summary .node-line {
     }
     
     function formatNodeTreeHeaderText(node) {
+      if (node.eoc) return getNodeLineText(node);
+
       if (node.tagClass === 0 && node.tagNumber === 3) {
         const valueBytes = getNodeValueBytes(node);
         const unusedBits = valueBytes.length ? valueBytes[0].toString(16).padStart(2, '0') : 'invalid';
-        return `${getTagName(node)} (${node.length}) [${unusedBits}]`;
+        return `${getTagName(node)} (${formatLengthText(node)}) [${unusedBits}]`;
       }
     
-      if (node.tagClass === 0 && node.tagNumber === 4) return `${getTagName(node)} (${node.length})`;
+      if (node.tagClass === 0 && node.tagNumber === 4) return `${getTagName(node)} (${formatLengthText(node)})`;
     
-      return getNodeLineText(node);
+      return `${getTagName(node)} (${formatLengthText(node)})`;
     }
     
     function formatNodeTreeValueDump(node, depth) {
-      if (node.constructed || node.tagClass !== 0 || (node.tagNumber !== 3 && node.tagNumber !== 4)) return '';
+      if (node.eoc || node.constructed) return '';
     
       const valueBytes = getNodeValueBytes(node);
       const dumpBytes = node.tagNumber === 3 ? valueBytes.slice(1) : valueBytes;
@@ -2147,7 +2231,7 @@ details[open] > summary .node-line {
     }
     
     function formatHexDumpLines(bytes, depth) {
-      const indent = '  '.repeat(depth);
+      const indent = '    '.repeat(depth);
       const width = Math.max(6, (bytes.length - 1).toString(16).length);
       const lines = [];
     
@@ -2155,7 +2239,8 @@ details[open] > summary .node-line {
         const chunk = bytes.slice(offset, offset + 16);
         const start = offset.toString(16).padStart(width, '0');
         const end = (offset + chunk.length - 1).toString(16).padStart(width, '0');
-        lines.push(`${indent}Hex:${start}-${end}: ${toLowerHexString(chunk)} // ${toPrintableAscii(chunk)}`);
+        const hex = Array.from(chunk, (byte) => byte.toString(16).padStart(2, '0')).join(' ').padEnd(47, ' ');
+        lines.push(`${indent}Hex:${start}-${end}: ${hex} //  ${toPrintableAscii(chunk)}`);
       }
     
       return lines.join('\n');
@@ -2243,6 +2328,7 @@ details[open] > summary .node-line {
       derIndex.readOnly = !createMode;
       derHex.readOnly = !createMode;
       derForm.querySelector('[data-der-action="edit-content"]').hidden = createMode;
+      derIndefinite.disabled = true;
     }
 
     function updateDerCreatePreview() {
@@ -2250,11 +2336,14 @@ details[open] > summary .node-line {
 
       const constructed = getCheckedValue('derMethod') === 'constructed';
       derHex.readOnly = constructed;
+      derIndefinite.disabled = !constructed;
       if (constructed) {
-        derLength.value = '0';
-        derValuePreview.textContent = 'Structured content starts empty.';
+        derLength.value = derIndefinite.checked ? 'Indefinite' : '0';
+        derValuePreview.textContent = derIndefinite.checked ? 'Structured content ends with EndOfContent.' : 'Structured content starts empty.';
         return;
       }
+
+      derIndefinite.checked = false;
 
       try {
         const valueBytes = hexToBytesAllowEmpty(derHex.value);
@@ -2276,8 +2365,9 @@ details[open] > summary .node-line {
     
       derTitle.textContent = 'Edit DER';
       derIndex.value = node.tagNumber;
-      derIndefinite.checked = false;
-      derLength.value = node.length;
+      derIndefinite.checked = Boolean(node.indefinite);
+      derIndefinite.disabled = !node.constructed;
+      derLength.value = formatLengthText(node);
       derTagName.textContent = tagName;
       derValuePreview.textContent = describeValue(node);
       derHex.value = toCompactHex(valueBytes, DER_CONTENT_HEX_LIMIT);
@@ -2296,6 +2386,7 @@ details[open] > summary .node-line {
       derTitle.textContent = mode === 'add-child' ? `Add child to ${getTagName(node)}` : `Insert before ${getTagName(node)}`;
       derIndex.value = '4';
       derIndefinite.checked = false;
+      derIndefinite.disabled = true;
       derTagName.textContent = 'OCTET STRING';
       derHex.value = '';
       setRadioValue('derClass', 0);
@@ -2639,6 +2730,18 @@ details[open] > summary .node-line {
           derValuePreview.textContent = error.message;
         }
         return;
+      }
+
+      const node = nodeById.get(activeDerNodeId);
+      if (node?.constructed && node.indefinite !== derIndefinite.checked) {
+        try {
+          const tagName = getTagName(node);
+          updateNodeIndefinite(node.id, derIndefinite.checked);
+          fileNotice.textContent = `${tagName} length set to ${derIndefinite.checked ? 'Indefinite' : 'definite'}.`;
+        } catch (error) {
+          derValuePreview.textContent = error.message;
+          return;
+        }
       }
 
       hideDerDialog();
