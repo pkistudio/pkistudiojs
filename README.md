@@ -85,6 +85,8 @@ Use the `Load` menu to import data:
 - `Load -> from Clipboard as PEM`: reads PEM text from the clipboard and parses it.
 - `Load -> from Clipboard as HEX`: reads a hexadecimal DER string from the clipboard and parses it.
 - `Close`: clears the current document and returns the viewer to the empty state.
+- `Tools -> Expand All`: opens every visible tree item in the current document.
+- `Tools -> Collapse All`: closes every tree item in the current document.
 - `About`: displays the application name and version.
 
 The file picker accepts common certificate and ASN.1-related extensions, including `.der`, `.pem`, `.cer`, `.crt`, `.csr`, `.p7b`, `.p7c`, `.crl`, and `.bin`.
