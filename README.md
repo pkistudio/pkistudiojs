@@ -4,16 +4,17 @@ PkiStudioJS is a simplified JavaScript version of PkiStudio. It is a browser-bas
 
 A hosted version is available at https://pkistudio.github.io/pkistudiojs/.
 
-Current version: 0.1.6
+Current version: 0.2.0
 
 File contents are not uploaded to the server. The Node.js service only serves the static web application.
 
 ## Reusing the Viewer
 
-The viewer UI and behavior live in `app/static/pkistudio.js`. The bundled `index.html` only provides a mount target and loads the script:
+The viewer UI and behavior live in `app/static/pkistudio.js`. The reusable parser and serializer API lives in `app/static/pkistudio-core.js`. The bundled `index.html` only provides a mount target and loads the scripts:
 
 ```html
 <div id="pkistudio"></div>
+<script src="pkistudio-core.js" defer></script>
 <script src="pkistudio.js" defer></script>
 ```
 
@@ -21,6 +22,7 @@ When `#pkistudio`, `[data-pkistudio]`, or `[data-pkistudio-mount]` is present, t
 
 ```html
 <div id="certificate-viewer"></div>
+<script src="/path/to/pkistudio-core.js" defer></script>
 <script src="/path/to/pkistudio.js" data-pkistudio-auto-init="false" defer></script>
 <script>
 	window.addEventListener('DOMContentLoaded', () => {
@@ -33,6 +35,48 @@ When `#pkistudio`, `[data-pkistudio]`, or `[data-pkistudio-mount]` is present, t
 ```
 
 By default the generated UI is isolated in a Shadow DOM so host-page styles do not need to match pkistudio's internal markup.
+
+## Reusing the Core API
+
+PkiStudioJS also ships a small Core API for code that needs ASN.1 parsing without mounting the browser UI. The package entry point and `pkistudiojs/core` export both resolve to `app/static/pkistudio-core.js`:
+
+```js
+const pkistudio = require('pkistudiojs');
+
+const document = pkistudio.parseInput(
+	new Uint8Array([0x30, 0x03, 0x02, 0x01, 0x01])
+);
+
+console.log(pkistudio.serializeTree(document.nodes));
+```
+
+The same file can be loaded directly in a browser. It exposes `window.PkiStudioCore`:
+
+```html
+<script src="pkistudio-core.js"></script>
+<script>
+	const summary = window.PkiStudioCore.parseAsn1('3003020101');
+	console.log(summary.nodes[0].tagName);
+</script>
+```
+
+The initial Core API is intentionally read-oriented. It includes:
+
+- `parseInput(input, options)`: parses DER/BER bytes, PEM text, headerless base64 text, or HEX text.
+- `parseAsn1(input, options)`: returns a JSON-friendly parsed summary.
+- `serializeTree(nodes, options)` and `serializeNode(node, options)`: convert parsed nodes into plain objects.
+- `encodeNodes(nodes)` and `encodeNode(node)`: re-encode parsed ASN.1 nodes.
+- `decodePem(text)`, `hexToBytes(text)`, `decodeOid(bytes)`, and `encodeOid(text)`: lower-level helpers.
+- `getTagName(node)`, `describeValue(node)`, `findNodeById(nodes, id)`, and `resolveOid(oid, oidNames)`: inspection helpers.
+
+Use `options.format` when the input should not be auto-detected. Supported values are `auto`, `der`, `ber`, `pem`, `base64`, `headerless-pem`, and `hex`. `serializeTree` accepts options such as `maxDepth`, `includeRawValue`, `includeHexPreview`, `hexPreviewLength`, and `oidNames`.
+
+Run the local checks with:
+
+```sh
+npm test
+npm run check
+```
 
 ## Minimal Debug Harness
 
