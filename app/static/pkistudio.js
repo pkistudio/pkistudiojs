@@ -1,6 +1,6 @@
 (() => {
   let defaultInstance = null;
-  const APP_VERSION = '0.1.5';
+  const APP_VERSION = '0.1.6';
 
   const APP_STYLES = `:host {
   color-scheme: light;
@@ -869,6 +869,12 @@ details[open] > summary .node-line {
         <button type="button" role="menuitem" data-action="load-clipboard-hex">from Clipboard as HEX</button>
       </div>
     </div>
+    <div class="menu-group">
+      <button type="button" data-action="toggle-save-menu" aria-haspopup="menu" aria-expanded="false">Save</button>
+      <div id="saveMenu" class="submenu" role="menu" hidden>
+        <button type="button" role="menuitem" data-action="save-der-file">to File as DER</button>
+      </div>
+    </div>
     <button type="button" data-action="close">Close</button>
     <div class="menu-group">
       <button type="button" data-action="toggle-tools-menu" aria-haspopup="menu" aria-expanded="false">Tools</button>
@@ -1096,6 +1102,7 @@ details[open] > summary .node-line {
     const dropZone = scope.querySelector('#dropZone');
     const menu = scope.querySelector('.menu');
     const loadMenu = scope.querySelector('#loadMenu');
+    const saveMenu = scope.querySelector('#saveMenu');
     const toolsMenu = scope.querySelector('#toolsMenu');
     const viewer = scope.querySelector('#viewer');
     const fileNotice = scope.querySelector('#fileNotice');
@@ -2198,6 +2205,67 @@ details[open] > summary .node-line {
         textarea.remove();
       }
     }
+
+    function downloadBytes(bytes, filename) {
+      const blob = new Blob([bytes], { type: 'application/octet-stream' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = filename;
+      link.style.display = 'none';
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    }
+
+    async function saveBytesWithPicker(bytes, filename) {
+      const handle = await window.showSaveFilePicker({
+        suggestedName: filename,
+        types: [
+          {
+            description: 'DER file',
+            accept: { 'application/octet-stream': ['.der'] }
+          }
+        ]
+      });
+      const writable = await handle.createWritable();
+      await writable.write(new Blob([bytes], { type: 'application/octet-stream' }));
+      await writable.close();
+      return handle.name || filename;
+    }
+
+    async function saveCurrentDerAsFile() {
+      if (!currentBytes) {
+        fileNotice.textContent = 'Load DER, PEM, or headerless base64 data before saving.';
+        return;
+      }
+
+      const defaultName = 'pkistudio.der';
+
+      if (window.showSaveFilePicker && window.isSecureContext) {
+        try {
+          const savedName = await saveBytesWithPicker(currentBytes, defaultName);
+          fileNotice.textContent = `Saved DER as ${savedName}.`;
+          return;
+        } catch (error) {
+          if (error.name === 'AbortError') {
+            fileNotice.textContent = 'DER file save was canceled.';
+            return;
+          }
+        }
+      }
+
+      const filename = window.prompt('Save DER file as', defaultName);
+      if (filename === null) {
+        fileNotice.textContent = 'DER file download was canceled.';
+        return;
+      }
+
+      const trimmedFilename = filename.trim() || defaultName;
+      downloadBytes(currentBytes, trimmedFilename);
+      fileNotice.textContent = `Downloaded DER as ${trimmedFilename}.`;
+    }
     
     async function readClipboardText() {
       if (!navigator.clipboard?.readText || !window.isSecureContext) {
@@ -2631,6 +2699,11 @@ details[open] > summary .node-line {
       menu.querySelector('[data-action="toggle-load-menu"]')?.setAttribute('aria-expanded', 'false');
     }
 
+    function hideSaveMenu() {
+      saveMenu.hidden = true;
+      menu.querySelector('[data-action="toggle-save-menu"]')?.setAttribute('aria-expanded', 'false');
+    }
+
     function hideToolsMenu() {
       toolsMenu.hidden = true;
       menu.querySelector('[data-action="toggle-tools-menu"]')?.setAttribute('aria-expanded', 'false');
@@ -2638,6 +2711,7 @@ details[open] > summary .node-line {
 
     function hideTopMenus() {
       hideLoadMenu();
+      hideSaveMenu();
       hideToolsMenu();
     }
     
@@ -2656,6 +2730,8 @@ details[open] > summary .node-line {
     
       if (button.dataset.action === 'toggle-load-menu') {
         toggleTopMenu('toggle-load-menu', loadMenu);
+      } else if (button.dataset.action === 'toggle-save-menu') {
+        toggleTopMenu('toggle-save-menu', saveMenu);
       } else if (button.dataset.action === 'toggle-tools-menu') {
         toggleTopMenu('toggle-tools-menu', toolsMenu);
       } else if (button.dataset.action === 'open') {
@@ -2667,6 +2743,9 @@ details[open] > summary .node-line {
       } else if (button.dataset.action === 'load-clipboard-hex') {
         hideTopMenus();
         await loadClipboardAsHex();
+      } else if (button.dataset.action === 'save-der-file') {
+        hideTopMenus();
+        await saveCurrentDerAsFile();
       } else if (button.dataset.action === 'expand-all') {
         hideTopMenus();
         setAllTreeNodesOpen(true);

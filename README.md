@@ -1,10 +1,10 @@
 # PkiStudioJS
 
-PkiStudioJS is a simplified JavaScript version of PkiStudio. It is a browser-based ASN.1 DER/BER viewer and editor that parses DER, BER, and PEM data locally in the browser, displays it as a navigable tree, and provides tools for inspecting, copying, editing, deleting, and opening selected nodes.
+PkiStudioJS is a simplified JavaScript version of PkiStudio. It is a browser-based ASN.1 DER/BER viewer and editor that parses DER, BER, and PEM data locally in the browser, displays it as a navigable tree, and provides tools for inspecting, copying, exporting, editing, deleting, and opening selected nodes.
 
 A hosted version is available at https://pkistudio.github.io/pkistudiojs/.
 
-Current version: 0.1.5
+Current version: 0.1.6
 
 File contents are not uploaded to the server. The Node.js service only serves the static web application.
 
@@ -84,6 +84,7 @@ Use the `Load` menu to import data:
 - `Load -> from File`: opens the browser file picker for DER, PEM, or headerless base64 text files.
 - `Load -> from Clipboard as PEM`: reads PEM text, including headerless base64-encoded ASN.1 data, from the clipboard and parses it.
 - `Load -> from Clipboard as HEX`: reads a hexadecimal DER string from the clipboard and parses it.
+- `Save -> to File as DER`: saves the current document as DER. Browsers with file-save support show a save dialog; other browsers download the DER file with the filename you enter.
 - `Close`: clears the current document and returns the viewer to the empty state.
 - `Tools -> Expand All`: opens every visible tree item in the current document.
 - `Tools -> Collapse All`: closes every tree item in the current document.
