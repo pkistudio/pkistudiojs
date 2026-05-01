@@ -1,6 +1,6 @@
 (() => {
   let defaultInstance = null;
-  const APP_VERSION = '0.1.4';
+  const APP_VERSION = '0.1.5';
 
   const APP_STYLES = `:host {
   color-scheme: light;
@@ -893,12 +893,12 @@ details[open] > summary .node-line {
     <label id="dropZone" class="picker" for="fileInput">
       <input id="fileInput" type="file" accept=".der,.pem,.cer,.crt,.csr,.p7b,.p7c,.crl,.bin,application/pkix-cert,application/pkcs10,application/octet-stream,text/plain" />
       <strong>Select a DER / PEM file</strong>
-      <p>Open DER binaries or PEM files such as certificates, CSRs, CRLs, and PKCS#7.</p>
+      <p>Open DER binaries, PEM files, or headerless base64 ASN.1 data.</p>
       <span class="button">Open File</span>
     </label>
     <div id="viewer" class="viewer empty">No DER / PEM file selected yet.</div>
     <p id="fileNotice" class="notice">
-      PEM input is base64-decoded before parsing.
+      PEM and headerless base64 input are decoded before parsing.
     </p>
   </section>
 </main>
@@ -1320,6 +1320,14 @@ details[open] > summary .node-line {
     function isPemText(text) {
       return /-----BEGIN [^-]+-----/.test(text);
     }
+
+    function normalizeBase64Text(text) {
+      const base64 = text.replace(/\s+/g, '');
+      if (!base64 || base64.length % 4 !== 0) return '';
+      if (!/^[A-Za-z0-9+/]+={0,2}$/.test(base64)) return '';
+      if (/=/.test(base64.slice(0, -2))) return '';
+      return base64;
+    }
     
     function base64ToBytes(base64) {
       const binary = atob(base64);
@@ -1354,10 +1362,23 @@ details[open] > summary .node-line {
       }
       return bytes;
     }
+
+    function decodeHeaderlessPem(text) {
+      const base64 = normalizeBase64Text(text);
+      if (!base64) throw new Error('Headerless PEM data must be valid base64 text');
+      const bytes = base64ToBytes(base64);
+      parseElements(bytes, 0, bytes.length);
+      return bytes;
+    }
     
     function getDerBytes(bytes) {
       const text = decodeAscii(bytes);
       if (isPemText(text)) return { bytes: decodePem(text), format: 'PEM' };
+      try {
+        return { bytes: decodeHeaderlessPem(text), format: 'headerless PEM' };
+      } catch (_) {
+        // Fall through to raw DER/BER bytes when the text is not a valid base64-encoded ASN.1 value.
+      }
       return { bytes, format: 'DER' };
     }
     
@@ -2519,7 +2540,7 @@ details[open] > summary .node-line {
       hideOctetDialog();
       viewer.classList.add('empty');
       viewer.innerHTML = 'No DER / PEM file selected yet.';
-      fileNotice.textContent = 'PEM input is base64-decoded before parsing.';
+      fileNotice.textContent = 'PEM and headerless base64 input are decoded before parsing.';
     }
     
     async function renderFile(file) {
@@ -2544,8 +2565,8 @@ details[open] > summary .node-line {
     async function loadClipboardAsPem() {
       try {
         const text = await readClipboardText();
-        if (!isPemText(text)) throw new Error('No PEM BEGIN/END block was found on the clipboard');
-        renderDerBytes(decodePem(text), 'Loaded PEM from the clipboard.');
+        const bytes = isPemText(text) ? decodePem(text) : decodeHeaderlessPem(text);
+        renderDerBytes(bytes, `Loaded ${isPemText(text) ? 'PEM' : 'headerless PEM'} from the clipboard.`);
       } catch (error) {
         fileNotice.textContent = `Could not load PEM from the clipboard: ${error.message}`;
       }

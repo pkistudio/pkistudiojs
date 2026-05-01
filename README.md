@@ -4,7 +4,7 @@ PkiStudioJS is a simplified JavaScript version of PkiStudio. It is a browser-bas
 
 A hosted version is available at https://pkistudio.github.io/pkistudiojs/.
 
-Current version: 0.1.4
+Current version: 0.1.5
 
 File contents are not uploaded to the server. The Node.js service only serves the static web application.
 
@@ -81,8 +81,8 @@ Then open `http://localhost:8080/your-debug-file.html`. From the browser console
 
 Use the `Load` menu to import data:
 
-- `Load -> from File`: opens the browser file picker for DER or PEM files.
-- `Load -> from Clipboard as PEM`: reads PEM text from the clipboard and parses it.
+- `Load -> from File`: opens the browser file picker for DER, PEM, or headerless base64 text files.
+- `Load -> from Clipboard as PEM`: reads PEM text, including headerless base64-encoded ASN.1 data, from the clipboard and parses it.
 - `Load -> from Clipboard as HEX`: reads a hexadecimal DER string from the clipboard and parses it.
 - `Close`: clears the current document and returns the viewer to the empty state.
 - `Tools -> Expand All`: opens every visible tree item in the current document.
@@ -93,7 +93,7 @@ The file picker accepts common certificate and ASN.1-related extensions, includi
 
 ## Supported Data
 
-pkistudio supports ASN.1 DER binaries, BER constructed values with indefinite length, and PEM files. PEM input is base64-decoded in the browser before parsing.
+pkistudio supports ASN.1 DER binaries, BER constructed values with indefinite length, PEM files, and headerless base64-encoded ASN.1 data. PEM and headerless base64 input are decoded in the browser before parsing.
 
 The viewer displays:
 
