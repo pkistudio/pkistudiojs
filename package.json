@@ -1,0 +1,31 @@
+{
+  "name": "pkistudiojs",
+  "version": "0.2.0",
+  "description": "Browser ASN.1 DER/BER/PEM viewer and reusable Core API.",
+  "main": "app/static/pkistudio-core.js",
+  "exports": {
+    ".": "./app/static/pkistudio-core.js",
+    "./core": "./app/static/pkistudio-core.js",
+    "./viewer": "./app/static/pkistudio.js"
+  },
+  "files": [
+    "app/static/index.html",
+    "app/static/oids.json",
+    "app/static/pkistudio-core.js",
+    "app/static/pkistudio.js",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "check": "node --check app/static/pkistudio-core.js && node --check app/static/pkistudio.js && node --check app/server.js",
+    "test": "node --test test/*.test.js"
+  },
+  "keywords": [
+    "asn1",
+    "der",
+    "ber",
+    "pem",
+    "pki"
+  ],
+  "license": "MIT"
+}

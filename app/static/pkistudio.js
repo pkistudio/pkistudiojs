@@ -1,6 +1,6 @@
 (() => {
   let defaultInstance = null;
-  const APP_VERSION = '0.1.6';
+  const APP_VERSION = '0.2.0';
 
   const APP_STYLES = `:host {
   color-scheme: light;
@@ -3109,6 +3109,7 @@ details[open] > summary .node-line {
   }
 
   window.PkiStudio = {
+    core: window.PkiStudioCore || null,
     init,
     version: APP_VERSION
   };
