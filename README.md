@@ -4,7 +4,7 @@ PkiStudioJS is a simplified JavaScript version of PkiStudio. It is a browser-bas
 
 A hosted version is available at https://pkistudio.github.io/pkistudiojs/.
 
-Current version: 0.2.0
+Current version: 0.2.1
 
 File contents are not uploaded to the server. The Node.js service only serves the static web application.
 
@@ -123,7 +123,7 @@ Then open `http://localhost:8080/your-debug-file.html`. From the browser console
 
 ## Loading Data
 
-Use the `Load` menu to import data:
+Use the `Load` menu or drop a file onto the viewer to import data:
 
 - `Load -> from File`: opens the browser file picker for DER, PEM, or headerless base64 text files.
 - `Load -> from Clipboard as PEM`: reads PEM text, including headerless base64-encoded ASN.1 data, from the clipboard and parses it.
