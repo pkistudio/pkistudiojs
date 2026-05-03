@@ -13,6 +13,15 @@ test('parses and serializes a minimal DER document', () => {
   assert.deepEqual(Array.from(core.encodeNodes(document.nodes)), [0x30, 0x03, 0x02, 0x01, 0x01]);
 });
 
+test('gets DER bytes for a node subtree by id', () => {
+  const document = core.parseInput(new Uint8Array([0x30, 0x06, 0x02, 0x01, 0x01, 0x04, 0x01, 0xff]));
+  const sequenceNode = document.nodes[0];
+  const integerNode = sequenceNode.children[0];
+
+  assert.deepEqual(Array.from(core.getNodeBytes(document.nodes, sequenceNode.id)), [0x30, 0x06, 0x02, 0x01, 0x01, 0x04, 0x01, 0xff]);
+  assert.deepEqual(Array.from(core.getNodeBytes(document.nodes, integerNode.id)), [0x02, 0x01, 0x01]);
+});
+
 test('detects HEX text input in auto mode', () => {
   const summary = core.parseAsn1('3003020101');
 

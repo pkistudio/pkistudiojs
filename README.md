@@ -4,7 +4,7 @@ PkiStudioJS is a simplified JavaScript version of PkiStudio. It is a browser-bas
 
 A hosted version is available at https://pkistudio.github.io/pkistudiojs/.
 
-Current version: 0.2.1
+Current version: 0.2.2
 
 File contents are not uploaded to the server. The Node.js service only serves the static web application.
 
@@ -26,15 +26,20 @@ When `#pkistudio`, `[data-pkistudio]`, or `[data-pkistudio-mount]` is present, t
 <script src="/path/to/pkistudio.js" data-pkistudio-auto-init="false" defer></script>
 <script>
 	window.addEventListener('DOMContentLoaded', () => {
-		window.PkiStudio.init({
+		const studio = window.PkiStudio.init({
 			mount: '#certificate-viewer',
 			oidUrl: '/path/to/oids.json'
 		});
+
+		// After loading data, export a visible node and its children as DER bytes.
+		// const bytes = studio.getNodeBytes('1');
 	});
 </script>
 ```
 
 By default the generated UI is isolated in a Shadow DOM so host-page styles do not need to match pkistudio's internal markup.
+
+The object returned by `window.PkiStudio.init()` exposes `loadBytes(bytes, notice)`, `getNodeBytes(nodeId)`, `close()`, `mount`, and `root`. `getNodeBytes(nodeId)` returns a `Uint8Array` containing the selected ASN.1 node and its subtree as DER bytes. Node IDs are visible in the generated tree markup as `data-node-id` attributes and match the IDs assigned by the Core API serializer for the same parsed document.
 
 ## Reusing the Core API
 
@@ -66,6 +71,7 @@ The initial Core API is intentionally read-oriented. It includes:
 - `parseAsn1(input, options)`: returns a JSON-friendly parsed summary.
 - `serializeTree(nodes, options)` and `serializeNode(node, options)`: convert parsed nodes into plain objects.
 - `encodeNodes(nodes)` and `encodeNode(node)`: re-encode parsed ASN.1 nodes.
+- `getNodeBytes(nodes, nodeId)`: re-encode a parsed node and its subtree by node ID.
 - `decodePem(text)`, `hexToBytes(text)`, `decodeOid(bytes)`, and `encodeOid(text)`: lower-level helpers.
 - `getTagName(node)`, `describeValue(node)`, `findNodeById(nodes, id)`, and `resolveOid(oid, oidNames)`: inspection helpers.
 
