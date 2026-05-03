@@ -1,6 +1,6 @@
 (() => {
   let defaultInstance = null;
-  const APP_VERSION = '0.2.1';
+  const APP_VERSION = '0.2.2';
 
   const APP_STYLES = `:host {
   color-scheme: light;
@@ -1984,6 +1984,12 @@ details[open] > summary .node-line {
       renderCurrentDocument();
     }
 
+    function getNodeBytes(nodeId) {
+      const node = nodeById.get(String(nodeId));
+      if (!node) throw new Error('The node was not found');
+      return encodeNode(node);
+    }
+
     function getCheckedValue(name) {
       return scope.querySelector(`input[name="${name}"]:checked`)?.value || '';
     }
@@ -3062,6 +3068,7 @@ details[open] > summary .node-line {
 
     return {
       close: closeDocument,
+      getNodeBytes,
       loadBytes: renderDerBytes,
       mount,
       root: scope
