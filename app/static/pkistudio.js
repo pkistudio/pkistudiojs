@@ -1,6 +1,6 @@
 (() => {
   let defaultInstance = null;
-  const APP_VERSION = '0.2.2';
+  const APP_VERSION = '0.2.3';
 
   const APP_STYLES = `:host {
   color-scheme: light;
@@ -872,8 +872,20 @@ details[open] > summary .node-line {
 
 <div id="nodeContextMenu" class="node-context-menu" role="menu" hidden>
   <button type="button" role="menuitem" data-node-action="edit">Edit</button>
-  <button type="button" role="menuitem" data-node-action="insert-before">Insert before</button>
-  <button type="button" role="menuitem" data-node-action="add-child">Add</button>
+  <div class="context-menu-group" role="none">
+    <button type="button" class="context-submenu-trigger" role="menuitem" data-node-action="insert-before" aria-haspopup="menu" aria-expanded="false">Insert before</button>
+    <div class="node-context-submenu" role="menu" aria-label="Insert before">
+      <button type="button" role="menuitem" data-node-action="insert-before-new-item">New Item</button>
+      <button type="button" role="menuitem" data-node-action="insert-before-clipboard-hex">from Clipboard as HEX Text</button>
+    </div>
+  </div>
+  <div class="context-menu-group" role="none" data-add-menu>
+    <button type="button" class="context-submenu-trigger" role="menuitem" data-node-action="add-child" aria-haspopup="menu" aria-expanded="false">Add</button>
+    <div class="node-context-submenu" role="menu" aria-label="Add">
+      <button type="button" role="menuitem" data-node-action="add-child-new-item">New Item</button>
+      <button type="button" role="menuitem" data-node-action="add-child-clipboard-hex">from Clipboard as HEX Text</button>
+    </div>
+  </div>
   <button type="button" role="menuitem" data-node-action="delete">Delete</button>
   <div class="context-menu-group" role="none">
     <button type="button" class="context-submenu-trigger" role="menuitem" data-node-action="send-to" aria-haspopup="menu" aria-expanded="false">Send to</button>
@@ -1019,6 +1031,21 @@ details[open] > summary .node-line {
   </form>
 </div>
 
+<div id="clipboardInsertDialog" class="edit-dialog" hidden>
+  <form id="clipboardInsertForm" class="edit-panel octet-panel">
+    <p id="clipboardInsertTitle" class="edit-title">Insert from Clipboard HEX</p>
+    <label>
+      HEX text
+      <textarea id="clipboardInsertHex" spellcheck="false"></textarea>
+    </label>
+    <div id="clipboardInsertError" class="edit-error" role="alert"></div>
+    <div class="edit-actions">
+      <button id="clipboardInsertSubmit" type="submit">Insert</button>
+      <button type="button" data-clipboard-insert-action="cancel">Cancel</button>
+    </div>
+  </form>
+</div>
+
 <div id="aboutDialog" class="edit-dialog" hidden>
   <section class="edit-panel about-panel" role="dialog" aria-labelledby="aboutTitle" aria-modal="true">
     <p id="aboutTitle" class="about-name">PkiStudioJS</p>
@@ -1100,6 +1127,12 @@ details[open] > summary .node-line {
     const octetHex = scope.querySelector('#octetHex');
     const octetFileInput = scope.querySelector('#octetFileInput');
     const octetError = scope.querySelector('#octetError');
+    const clipboardInsertDialog = scope.querySelector('#clipboardInsertDialog');
+    const clipboardInsertForm = scope.querySelector('#clipboardInsertForm');
+    const clipboardInsertTitle = scope.querySelector('#clipboardInsertTitle');
+    const clipboardInsertHex = scope.querySelector('#clipboardInsertHex');
+    const clipboardInsertError = scope.querySelector('#clipboardInsertError');
+    const clipboardInsertSubmit = scope.querySelector('#clipboardInsertSubmit');
     const aboutDialog = scope.querySelector('#aboutDialog');
     
     const CLASS_NAMES = ['Universal', 'Application', 'Context-specific', 'Private'];
@@ -1136,6 +1169,8 @@ details[open] > summary .node-line {
     let activeEditNodeId = null;
     let activeTimeNodeId = null;
     let activeOctetNodeId = null;
+    let activeClipboardInsertNodeId = null;
+    let activeClipboardInsertMode = 'insert-before';
     let nextNodeId = 1;
     
     async function loadOidNames() {
@@ -2320,20 +2355,74 @@ details[open] > summary .node-line {
       await writeClipboardText(treeText);
       fileNotice.textContent = `Copied tree text for ${getTagName(node)} (${treeText.split('\n').length} lines).`;
     }
+
+    function parseClipboardHexNode(text) {
+      const bytes = hexToBytes(text);
+      const nodes = parseElements(bytes, 0, bytes.length);
+      const encodedBytes = encodeNodes(nodes);
+      if (!bytesEqual(encodedBytes, bytes)) throw new Error('The clipboard HEX is not a canonical DER/BER node');
+      if (nodes.length !== 1) throw new Error('Clipboard HEX must contain exactly one ASN.1 element');
+
+      return nodes[0];
+    }
+
+    function insertHexTextBefore(targetNodeId, text) {
+      const targetNode = nodeById.get(targetNodeId);
+      if (!targetNode) throw new Error('The insertion point was not found');
+
+      const insertedNode = parseClipboardHexNode(text);
+      const insertedTagName = getTagName(insertedNode);
+      const targetTagName = getTagName(targetNode);
+      insertNodeBefore(targetNodeId, insertedNode);
+      fileNotice.textContent = `Inserted ${insertedTagName} from clipboard HEX before ${targetTagName}.`;
+    }
+
+    function addHexTextToNode(parentNodeId, text) {
+      const parentNode = nodeById.get(parentNodeId);
+      if (!parentNode) throw new Error('The parent node was not found');
+      if (!parentNode.constructed) throw new Error('Children can only be added to structured nodes');
+
+      const insertedNode = parseClipboardHexNode(text);
+      const insertedTagName = getTagName(insertedNode);
+      const parentTagName = getTagName(parentNode);
+      addChildNode(parentNodeId, insertedNode);
+      fileNotice.textContent = `Added ${insertedTagName} from clipboard HEX to ${parentTagName}.`;
+    }
+
+    function applyClipboardHexText(nodeId, mode, text) {
+      if (mode === 'add-child') {
+        addHexTextToNode(nodeId, text);
+        return;
+      }
+
+      insertHexTextBefore(nodeId, text);
+    }
+
+    async function applyClipboardHex(nodeId, mode) {
+      let text;
+      try {
+        text = await readClipboardText();
+      } catch (error) {
+        showClipboardInsertDialog(nodeId, mode, error.message);
+        return;
+      }
+
+      applyClipboardHexText(nodeId, mode, text);
+    }
     
     function hideNodeContextMenu() {
       activeContextNodeId = null;
       nodeContextMenu.classList.remove('open-left');
-      nodeContextMenu.querySelector('.context-menu-group')?.classList.remove('submenu-open');
-      nodeContextMenu.querySelector('.context-submenu-trigger')?.setAttribute('aria-expanded', 'false');
+      setContextSubmenuOpen(null);
       nodeContextMenu.hidden = true;
     }
     
-    function setSendToSubmenuOpen(open) {
-      const group = nodeContextMenu.querySelector('.context-menu-group');
-      const trigger = nodeContextMenu.querySelector('.context-submenu-trigger');
-      group?.classList.toggle('submenu-open', open);
-      trigger?.setAttribute('aria-expanded', String(open));
+    function setContextSubmenuOpen(openGroup) {
+      for (const group of nodeContextMenu.querySelectorAll('.context-menu-group')) {
+        const open = group === openGroup;
+        group.classList.toggle('submenu-open', open);
+        group.querySelector('.context-submenu-trigger')?.setAttribute('aria-expanded', String(open));
+      }
     }
     
     function setRadioValue(name, value) {
@@ -2365,6 +2454,27 @@ details[open] > summary .node-line {
       octetDialog.hidden = true;
       octetError.textContent = '';
       octetFileInput.value = '';
+    }
+
+    function showClipboardInsertDialog(nodeId, mode, errorMessage = '') {
+      activeClipboardInsertNodeId = nodeId;
+      activeClipboardInsertMode = mode;
+      clipboardInsertTitle.textContent = mode === 'add-child' ? 'Add from Clipboard HEX' : 'Insert from Clipboard HEX';
+      clipboardInsertSubmit.textContent = mode === 'add-child' ? 'Add' : 'Insert';
+      clipboardInsertHex.value = '';
+      clipboardInsertError.textContent = errorMessage ? `Clipboard read failed: ${errorMessage}` : '';
+      clipboardInsertDialog.hidden = false;
+      clipboardInsertHex.focus();
+      clipboardInsertHex.select();
+    }
+
+    function hideClipboardInsertDialog() {
+      activeClipboardInsertNodeId = null;
+      activeClipboardInsertMode = 'insert-before';
+      clipboardInsertDialog.hidden = true;
+      clipboardInsertError.textContent = '';
+      clipboardInsertSubmit.textContent = 'Insert';
+      clipboardInsertHex.value = '';
     }
 
     function showAboutDialog() {
@@ -2545,12 +2655,12 @@ details[open] > summary .node-line {
     
     function showNodeContextMenu(nodeId, x, y) {
       const node = nodeById.get(nodeId);
-      const addButton = nodeContextMenu.querySelector('[data-node-action="add-child"]');
+      const addGroup = nodeContextMenu.querySelector('[data-add-menu]');
       const extractedButton = nodeContextMenu.querySelector('[data-node-action="send-new-window-extracted"]');
-      addButton.hidden = !node?.constructed;
+      addGroup.hidden = !node?.constructed;
       extractedButton.hidden = !(node?.encapsulated && node.children.length > 0);
       activeContextNodeId = nodeId;
-      setSendToSubmenuOpen(false);
+      setContextSubmenuOpen(null);
       nodeContextMenu.classList.remove('open-left');
       nodeContextMenu.hidden = false;
     
@@ -2572,6 +2682,7 @@ details[open] > summary .node-line {
       hideEditDialog();
       hideTimeDialog();
       hideOctetDialog();
+      hideClipboardInsertDialog();
       viewer.classList.add('empty');
       viewer.innerHTML = 'No DER / PEM file selected yet.';
       fileNotice.textContent = 'PEM and headerless base64 input are decoded before parsing.';
@@ -2591,6 +2702,7 @@ details[open] > summary .node-line {
         hideEditDialog();
         hideTimeDialog();
         hideOctetDialog();
+        hideClipboardInsertDialog();
         viewer.classList.remove('empty');
         viewer.innerHTML = `<div class="error"><strong>Could not parse as DER.</strong><br>${escapeHtml(error.message)}</div>`;
       }
@@ -2627,6 +2739,7 @@ details[open] > summary .node-line {
       hideEditDialog();
       hideTimeDialog();
       hideOctetDialog();
+      hideClipboardInsertDialog();
       renderCurrentDocument();
       fileNotice.textContent = notice;
     }
@@ -2755,10 +2868,11 @@ details[open] > summary .node-line {
       const button = event.target.closest('button[data-node-action]');
       if (!button) return;
     
-      if (button.dataset.nodeAction === 'send-to') {
+      if (button.classList.contains('context-submenu-trigger')) {
         event.preventDefault();
-        const isOpen = button.closest('.context-menu-group')?.classList.contains('submenu-open');
-        setSendToSubmenuOpen(!isOpen);
+        const group = button.closest('.context-menu-group');
+        const isOpen = group?.classList.contains('submenu-open');
+        setContextSubmenuOpen(isOpen ? null : group);
         return;
       }
     
@@ -2769,9 +2883,9 @@ details[open] > summary .node-line {
     
       if (button.dataset.nodeAction === 'edit') {
         showDerDialog(node);
-      } else if (button.dataset.nodeAction === 'insert-before') {
+      } else if (button.dataset.nodeAction === 'insert-before-new-item') {
         showCreateDerDialog('insert-before', node);
-      } else if (button.dataset.nodeAction === 'add-child') {
+      } else if (button.dataset.nodeAction === 'add-child-new-item') {
         if (node.constructed) showCreateDerDialog('add-child', node);
       } else if (button.dataset.nodeAction === 'send-new-window') {
         openNodeSubtreeWindow(node);
@@ -2789,6 +2903,18 @@ details[open] > summary .node-line {
         } catch (error) {
           fileNotice.textContent = `Could not copy to the clipboard: ${error.message}`;
         }
+      } else if (button.dataset.nodeAction === 'insert-before-clipboard-hex') {
+        try {
+          await applyClipboardHex(nodeId, 'insert-before');
+        } catch (error) {
+          fileNotice.textContent = `Could not insert from the clipboard: ${error.message}`;
+        }
+      } else if (button.dataset.nodeAction === 'add-child-clipboard-hex') {
+        try {
+          await applyClipboardHex(nodeId, 'add-child');
+        } catch (error) {
+          fileNotice.textContent = `Could not add from the clipboard: ${error.message}`;
+        }
       } else if (button.dataset.nodeAction === 'delete') {
         deleteNode(nodeId);
       }
@@ -2797,17 +2923,13 @@ details[open] > summary .node-line {
     nodeContextMenu.addEventListener('pointerover', (event) => {
       const button = event.target.closest('button[data-node-action]');
       if (!button) return;
-      if (button.dataset.nodeAction === 'send-to' || button.closest('.node-context-submenu')) {
-        setSendToSubmenuOpen(true);
-      } else {
-        setSendToSubmenuOpen(false);
-      }
+      setContextSubmenuOpen(button.closest('.context-menu-group'));
     });
     
     nodeContextMenu.addEventListener('focusin', (event) => {
       const button = event.target.closest('button[data-node-action]');
       if (!button) return;
-      setSendToSubmenuOpen(button.dataset.nodeAction === 'send-to' || Boolean(button.closest('.node-context-submenu')));
+      setContextSubmenuOpen(button.closest('.context-menu-group'));
     });
     
     derForm.addEventListener('submit', (event) => {
@@ -2986,6 +3108,25 @@ details[open] > summary .node-line {
     octetDialog.addEventListener('click', (event) => {
       if (event.target === octetDialog) hideOctetDialog();
     });
+
+    clipboardInsertForm.addEventListener('submit', (event) => {
+      event.preventDefault();
+
+      try {
+        applyClipboardHexText(activeClipboardInsertNodeId, activeClipboardInsertMode, clipboardInsertHex.value);
+        hideClipboardInsertDialog();
+      } catch (error) {
+        clipboardInsertError.textContent = error.message;
+      }
+    });
+
+    clipboardInsertForm.addEventListener('click', (event) => {
+      if (event.target.closest('button[data-clipboard-insert-action="cancel"]')) hideClipboardInsertDialog();
+    });
+
+    clipboardInsertDialog.addEventListener('click', (event) => {
+      if (event.target === clipboardInsertDialog) hideClipboardInsertDialog();
+    });
     
     editForm.addEventListener('submit', (event) => {
       event.preventDefault();
@@ -3027,6 +3168,7 @@ details[open] > summary .node-line {
         hideEditDialog();
         hideTimeDialog();
         hideOctetDialog();
+        hideClipboardInsertDialog();
         hideAboutDialog();
         hideTopMenus();
       }

@@ -4,7 +4,7 @@ PkiStudioJS is a simplified JavaScript version of PkiStudio. It is a browser-bas
 
 A hosted version is available at https://pkistudio.github.io/pkistudiojs/.
 
-Current version: 0.2.2
+Current version: 0.2.3
 
 File contents are not uploaded to the server. The Node.js service only serves the static web application.
 
@@ -171,9 +171,15 @@ Click a tree item icon to open its context menu. The menu order is:
 
 `Edit` opens the DER inspector for the selected node. The inspector shows identifier details, class, method, tag index, length, tag name, and a hexadecimal content preview. For editable nodes, `Edit...` opens the appropriate content editor.
 
-`Insert before` creates a new sibling immediately before the selected node. New items default to an empty `OCTET STRING`.
+`Insert before` contains actions for creating a sibling immediately before the selected node:
 
-`Add` appears only for structured nodes and creates a new child item under the selected node. New child items also default to an empty `OCTET STRING`.
+- `New Item`: creates a new empty `OCTET STRING` sibling.
+- `from Clipboard as HEX Text`: reads a compact DER hexadecimal string from the clipboard, parses it as exactly one ASN.1 element, and inserts that element immediately before the selected node.
+
+`Add` appears only for structured nodes and contains actions for creating a child under the selected node:
+
+- `New Item`: creates a new empty `OCTET STRING` child.
+- `from Clipboard as HEX Text`: reads a compact DER hexadecimal string from the clipboard, parses it as exactly one ASN.1 element, and adds that element as a child of the selected node.
 
 `Delete` removes the selected node from the current document and re-encodes the remaining tree. Derived `EndOfContent (0)` terminators are controlled by their parent indefinite-length setting and cannot be deleted directly.
 
@@ -187,6 +193,8 @@ The `Send to` submenu contains actions for exporting or reopening a selected nod
 - `Clipboard as HEX Text`: copies the selected node as a compact DER hexadecimal string.
 
 New-window actions transfer DER bytes through browser `localStorage` and add a temporary query parameter to the new window URL. The transfer data is removed after it is read.
+
+`Insert before -> from Clipboard as HEX Text` and `Add -> from Clipboard as HEX Text` pair with `Send to -> Clipboard as HEX Text`, so a node copied as DER HEX can be pasted back into the same document or into another viewer instance. Clipboard reads require a browser context that permits the Clipboard API; when direct clipboard reading is denied, pkistudio opens a HEX text dialog for the same insert or add operation.
 
 ## Editing
 
