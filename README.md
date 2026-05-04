@@ -4,7 +4,7 @@ PkiStudioJS is a simplified JavaScript version of PkiStudio. It is a browser-bas
 
 A hosted version is available at https://pkistudio.github.io/pkistudiojs/.
 
-Current version: 0.2.3
+Current version: 0.2.4
 
 File contents are not uploaded to the server. The Node.js service only serves the static web application.
 
@@ -38,6 +38,8 @@ When `#pkistudio`, `[data-pkistudio]`, or `[data-pkistudio-mount]` is present, t
 ```
 
 By default the generated UI is isolated in a Shadow DOM so host-page styles do not need to match pkistudio's internal markup.
+
+The bundled viewer fills the available browser content area under the top menu, including the lower notice area. Large trees continue to scroll inside the viewer.
 
 The object returned by `window.PkiStudio.init()` exposes `loadBytes(bytes, notice)`, `getNodeBytes(nodeId)`, `close()`, `mount`, and `root`. `getNodeBytes(nodeId)` returns a `Uint8Array` containing the selected ASN.1 node and its subtree as DER bytes. Node IDs are visible in the generated tree markup as `data-node-id` attributes and match the IDs assigned by the Core API serializer for the same parsed document.
 
