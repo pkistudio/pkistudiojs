@@ -1,6 +1,6 @@
 (() => {
   let defaultInstance = null;
-  const APP_VERSION = '0.2.3';
+  const APP_VERSION = '0.2.4';
 
   const APP_STYLES = `:host {
   color-scheme: light;
@@ -30,17 +30,31 @@
 :host {
   display: block;
   margin: 0;
-  min-height: 100vh;
+  width: 100%;
+  height: 100dvh;
+  min-height: 0;
+  overflow: hidden;
   font-family: Tahoma, "MS UI Gothic", "Yu Gothic UI", system-ui, sans-serif;
   font-size: 13px;
   color: var(--text);
   background: linear-gradient(#f7f9fc, var(--bg));
 }
 
+:host([data-pkistudio-fullscreen]) {
+  position: fixed;
+  inset: 0;
+  width: auto;
+  height: auto;
+}
+
 main {
-  width: min(1220px, calc(100% - 24px));
-  margin: 0 auto;
-  padding: 14px 0;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  margin: 0;
+  padding: 0;
 }
 
 .menu {
@@ -54,7 +68,7 @@ main {
   margin-bottom: 0;
   border: 1px solid var(--panel-border);
   border-bottom: 0;
-  border-radius: 6px 6px 0 0;
+  border-radius: 0;
   padding: 4px;
   background: linear-gradient(#ffffff, var(--chrome));
   box-shadow: 0 1px 2px rgba(15, 23, 42, 0.08);
@@ -135,11 +149,20 @@ p {
 }
 
 .card {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 6px;
+  min-height: 0;
   border: 1px solid var(--panel-border);
-  border-radius: 0 0 6px 6px;
-  padding: 8px;
+  border-right: 0;
+  border-left: 0;
+  border-radius: 0;
+  padding: 6px;
   background: var(--window);
-  box-shadow: 0 14px 28px rgba(15, 23, 42, 0.12);
+  box-shadow: none;
+  overflow: hidden;
 }
 
 input[type="file"] {
@@ -151,8 +174,13 @@ input[type="file"] {
 }
 
 .viewer {
-  min-height: 560px;
-  max-height: calc(100vh - 150px);
+  flex: 1 1 auto;
+  width: 100%;
+  height: auto;
+  min-width: min(320px, 100%);
+  min-height: 0;
+  max-width: 100%;
+  max-height: none;
   overflow: auto;
   border: 1px solid var(--panel-border);
   border-radius: 3px;
@@ -422,7 +450,9 @@ details[open] > summary .node-line {
 }
 
 .notice {
-  margin-top: 8px;
+  flex: 0 0 auto;
+  margin-top: 0;
+  width: 100%;
   font-size: 12px;
 }
 
@@ -1073,6 +1103,10 @@ details[open] > summary .node-line {
 
   function createAppRoot(mount, options) {
     const useShadowRoot = options.shadowRoot !== false && typeof mount.attachShadow === 'function';
+    if (options.fullscreen && !(mount instanceof ShadowRoot)) {
+      applyFullscreenPageStyles();
+      mount.setAttribute('data-pkistudio-fullscreen', '');
+    }
     const root = mount instanceof ShadowRoot
       ? mount
       : useShadowRoot
@@ -1081,6 +1115,15 @@ details[open] > summary .node-line {
 
     root.innerHTML = `<style>${APP_STYLES}</style>${APP_MARKUP}`;
     return root;
+  }
+
+  function applyFullscreenPageStyles() {
+    document.documentElement.style.height = '100%';
+    document.documentElement.style.margin = '0';
+    document.documentElement.style.overflow = 'hidden';
+    document.body.style.height = '100%';
+    document.body.style.margin = '0';
+    document.body.style.overflow = 'hidden';
   }
 
   function init(options = {}) {
@@ -2145,7 +2188,7 @@ details[open] > summary .node-line {
       url.searchParams.set('expand', key);
       url.hash = '';
     
-      const expandedWindow = window.open(url.toString(), '_blank');
+      const expandedWindow = openViewerWindow(url);
       if (!expandedWindow) {
         localStorage.removeItem(key);
         fileNotice.textContent = 'The encapsulated DER could not be opened because the popup was blocked.';
@@ -2175,7 +2218,7 @@ details[open] > summary .node-line {
       url.searchParams.set('subtree', key);
       url.hash = '';
     
-      const subtreeWindow = window.open(url.toString(), '_blank');
+      const subtreeWindow = openViewerWindow(url);
       if (!subtreeWindow) {
         localStorage.removeItem(key);
         fileNotice.textContent = 'The subtree could not be opened because the popup was blocked.';
@@ -2183,6 +2226,10 @@ details[open] > summary .node-line {
       }
     
       subtreeWindow.opener = null;
+    }
+
+    function openViewerWindow(url) {
+      return window.open(url.toString(), '_blank');
     }
     
     async function writeClipboardText(text) {
@@ -3227,7 +3274,7 @@ details[open] > summary .node-line {
     if (defaultInstance || document.querySelector('script[data-pkistudio-auto-init="false"]')) return;
     const mount = document.querySelector('[data-pkistudio-mount], [data-pkistudio], #pkistudio');
     if (!mount) return;
-    defaultInstance = init({ mount });
+    defaultInstance = init({ mount, fullscreen: true });
   }
 
   if (document.readyState === 'loading') {
