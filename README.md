@@ -4,7 +4,7 @@ PkiStudioJS is a simplified JavaScript version of PkiStudio. It is a browser-bas
 
 A hosted version is available at https://pkistudio.github.io/pkistudiojs/.
 
-Current version: 0.2.6
+Current version: 0.3.0
 
 File contents are not uploaded to the server. The Node.js service only serves the static web application.
 
@@ -44,6 +44,24 @@ The bundled viewer fills the available browser content area under the top menu, 
 The viewer follows the browser or operating system light/dark theme preference. The selected node actions, dialogs, notices, tree display, and new-window views use the same effective theme.
 
 The object returned by `window.PkiStudio.init()` exposes `loadBytes(bytes, notice)`, `getNodeBytes(nodeId)`, `close()`, `mount`, and `root`. `getNodeBytes(nodeId)` returns a `Uint8Array` containing the selected ASN.1 node and its subtree as DER bytes. Node IDs are visible in the generated tree markup as `data-node-id` attributes and match the IDs assigned by the Core API serializer for the same parsed document.
+
+The viewer can also be imported from npm for browser application bundles. Importing the module is safe in Node-like module evaluation contexts, but `init()` still requires a browser DOM:
+
+```js
+const viewer = require('pkistudiojs/viewer');
+
+window.addEventListener('DOMContentLoaded', () => {
+	const studio = viewer.init({
+		mount: '#certificate-viewer',
+		oidUrl: '/path/to/oids.json',
+		newWindowUrl: '/viewer.html'
+	});
+
+	studio.loadBytes(new Uint8Array([0x30, 0x03, 0x02, 0x01, 0x01]), 'Loaded DER.');
+});
+```
+
+`pkistudiojs/viewer` exports `version`, `core`, `init(options)`, and `autoInit()`. The `core` property points to the loaded Core API when `pkistudio-core.js` has already been loaded in the same global context.
 
 ## Reusing the Core API
 

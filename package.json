@@ -1,6 +1,6 @@
 {
   "name": "pkistudiojs",
-  "version": "0.2.6",
+  "version": "0.3.0",
   "description": "Browser ASN.1 DER/BER/PEM viewer and reusable Core API.",
   "main": "app/static/pkistudio-core.js",
   "exports": {

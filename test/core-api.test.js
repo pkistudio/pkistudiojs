@@ -5,6 +5,8 @@ const test = require('node:test');
 
 const core = require('../app/static/pkistudio-core.js');
 const packageJson = require('../package.json');
+const viewer = require('../app/static/pkistudio.js');
+const exportedViewer = require('pkistudiojs/viewer');
 
 const rootDir = path.join(__dirname, '..');
 
@@ -66,4 +68,19 @@ test('keeps public version metadata in sync', () => {
   assert.equal(core.VERSION, packageJson.version);
   assert.equal(viewerVersion, packageJson.version);
   assert.equal(readmeVersion, packageJson.version);
+});
+
+test('loads the viewer entry point without a browser DOM', () => {
+  assert.equal(exportedViewer, viewer);
+  assert.equal(typeof viewer.init, 'function');
+  assert.equal(typeof viewer.autoInit, 'function');
+  assert.equal(viewer.version, packageJson.version);
+  assert.equal(viewer.core, core);
+});
+
+test('reports a clear error when initializing the viewer without a browser DOM', () => {
+  assert.throws(
+    () => viewer.init(),
+    /PkiStudio viewer requires a browser DOM/
+  );
 });
