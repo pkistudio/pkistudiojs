@@ -1433,6 +1433,7 @@ details[open] > summary .node-line {
     const ITEM_TEXT_LIMIT = 250;
     const DER_CONTENT_HEX_LIMIT = 4096;
     let oidNames = {};
+    let oidResolver = normalizeOidResolver(options.oidResolver || options.oidNames);
     let currentBytes = null;
     let currentNodes = [];
     let nodeById = new Map();
@@ -1445,12 +1446,29 @@ details[open] > summary .node-line {
     let activeClipboardInsertNodeId = null;
     let activeClipboardInsertMode = 'insert-before';
     let nextNodeId = 1;
+
+    function normalizeOidResolver(source) {
+      if (!source) return null;
+      if (typeof source === 'function') return { resolve: source };
+      if (typeof source.resolve === 'function') return source;
+      if (typeof source === 'object' && !Array.isArray(source)) {
+        return { resolve: (oid) => source[oid] || '' };
+      }
+      throw new Error('oidResolver must be a resolver, function, or object keyed by dotted OID strings');
+    }
+
+    function resolveOidName(oid) {
+      if (oidResolver) return oidResolver.resolve(oid) || '';
+      return oidNames[oid] || '';
+    }
     
     async function loadOidNames() {
+      if (oidResolver) return;
       try {
         const response = await fetch(options.oidUrl || 'oids.json', { cache: 'no-cache' });
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
         oidNames = await response.json();
+        oidResolver = normalizeOidResolver(oidNames);
         if (currentNodes.length > 0) renderCurrentDocument();
       } catch (error) {
         console.warn('OID names could not be loaded.', error);
@@ -1983,7 +2001,7 @@ details[open] > summary .node-line {
     
     function getOidComment(node) {
       if (node.tagClass !== 0 || node.tagNumber !== 6) return '';
-      return oidNames[describeValue(node)] || '';
+      return resolveOidName(describeValue(node));
     }
     
     function describeValue(node) {

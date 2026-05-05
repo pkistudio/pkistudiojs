@@ -7,6 +7,7 @@ const core = require('../app/static/pkistudio-core.js');
 const packageJson = require('../package.json');
 const viewer = require('../app/static/pkistudio.js');
 const exportedViewer = require('pkistudiojs/viewer');
+const oidResolver = require('pkistudiojs/oid-resolver');
 
 const rootDir = path.join(__dirname, '..');
 
@@ -57,6 +58,29 @@ test('serializes OID comments with a supplied OID map', () => {
 
   assert.equal(serialized.value, '1.2.840.113549');
   assert.equal(serialized.oidName, 'rsadsi');
+});
+
+test('serializes OID comments with a supplied OID resolver', () => {
+  const oidBytes = core.encodeOid('1.2.3.4.5');
+  const oidNode = core.parseInput(new Uint8Array([0x06, oidBytes.length, ...oidBytes])).nodes[0];
+  const resolver = oidResolver.create({ '1.2.3.4.5': 'custom test oid' });
+  const serialized = core.serializeNode(oidNode, { oidResolver: resolver });
+
+  assert.equal(serialized.value, '1.2.3.4.5');
+  assert.equal(serialized.oidName, 'custom test oid');
+});
+
+test('exports an OID resolver with bundled names and custom overrides', () => {
+  assert.equal(oidResolver.resolve('1.2.840.113549'), 'RSA Data Security inc.,');
+
+  const resolver = oidResolver.create({
+    '1.2.840.113549': 'custom rsadsi',
+    '1.2.3.4.5': 'custom oid'
+  });
+
+  assert.equal(resolver.resolve('1.2.840.113549'), 'custom rsadsi');
+  assert.equal(resolver.resolve('1.2.3.4.5'), 'custom oid');
+  assert.equal(resolver.resolve('1.2.3.4.6'), '');
 });
 
 test('keeps public version metadata in sync', () => {

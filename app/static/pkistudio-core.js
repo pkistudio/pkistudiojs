@@ -503,9 +503,15 @@
     };
   }
 
+  function resolveOid(oid, oidNames = {}) {
+    if (typeof oidNames === 'function') return oidNames(oid) || '';
+    if (typeof oidNames?.resolve === 'function') return oidNames.resolve(oid) || '';
+    return oidNames[oid] || '';
+  }
+
   function getOidComment(node, oidNames = {}) {
     if (node.tagClass !== 0 || node.tagNumber !== 6) return '';
-    return oidNames[describeValue(node)] || '';
+    return resolveOid(describeValue(node), oidNames);
   }
 
   function serializeNode(node, options = {}, depth = 0) {
@@ -529,7 +535,7 @@
       value: describeValue(node)
     };
 
-    const oidComment = getOidComment(node, options.oidNames);
+    const oidComment = getOidComment(node, options.oidResolver || options.oidNames);
     if (oidComment) serialized.oidName = oidComment;
     if (options.includeHexPreview !== false && !node.constructed && valueBytes.length > 0) serialized.hexPreview = toCompactHex(valueBytes, options.hexPreviewLength || 72);
     if (options.includeRawValue) serialized.valueHex = toLowerHexString(valueBytes);
@@ -571,10 +577,6 @@
     const node = findNodeById(nodes, nodeId);
     if (!node) throw new Error('The node was not found');
     return encodeNode(node);
-  }
-
-  function resolveOid(oid, oidNames = {}) {
-    return oidNames[oid] || '';
   }
 
   return {
