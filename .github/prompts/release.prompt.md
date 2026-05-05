@@ -1,5 +1,5 @@
 ---
-description: "Use when: running the pkistudio issue-to-release workflow, including issue creation, branch work, PR, merge, tag, release, and Actions checks."
+description: "Use when: running the pkistudio issue-to-release workflow, including issue creation, branch work, PR, merge, tag, GitHub Release, npm publish, Trusted Publishing, and Actions checks."
 name: "pkistudio release workflow"
 argument-hint: "[version|TBD] [#issue] <short feature or fix summary>"
 agent: "agent"
@@ -7,7 +7,7 @@ agent: "agent"
 
 # pkistudio Release Workflow
 
-Run the standard pkistudio release workflow from issue creation through GitHub Release publication.
+Run the standard pkistudio release workflow from issue creation through GitHub Release and npm publication.
 
 Expected invocation examples:
 
@@ -26,6 +26,7 @@ The release version may be omitted or set to `TBD` when development should proce
 
 - This prompt is a workflow guide only and does not grant repository permissions.
 - Push, tag, release, merge, and secret-backed Actions operations are possible only for users or tokens with the required repository permissions.
+- npm publication requires npm package ownership or a configured npm Trusted Publisher for `pkistudio/pkistudiojs` and `.github/workflows/publish-npm.yml`.
 - Work in the current repository only.
 - Check the current branch, remote, and working tree before making changes.
 - Never discard uncommitted user changes.
@@ -52,6 +53,7 @@ Derive these from the invocation when possible:
    - Run a clean working tree check.
    - Confirm the current default branch and remote.
    - If `version` is known, check existing tags so the requested release version does not already exist.
+   - If `version` is known, check whether `pkistudiojs@<version>` is already published on npm so reruns do not attempt to publish an immutable version twice.
    - If `version` is pending, record that the final version must be chosen before version bumps, tagging, or release publication.
 
 2. Create Issue
@@ -86,6 +88,7 @@ Derive these from the invocation when possible:
 
    - Use the existing VS Code task `Start pkistudio server` or run `node app/server.js` when browser verification is needed.
    - Use browser automation when practical to verify critical UI behavior.
+   - For release candidates, run `npm pack --dry-run` and confirm the package contents are intentional.
    - Stop any verification server you started when done.
 
 6. Commit and Push
@@ -112,15 +115,23 @@ Derive these from the invocation when possible:
    - Merge using the repository's preferred style. If no preference is known, use squash merge.
    - Confirm the issue closes automatically or report if it does not.
 
-10. Tag and Release
+10. Tag, Release, and Publish
     - Switch to `main`, fetch, and fast-forward pull.
       - If `version` is pending, stop and ask for the final version before changing files, tagging, or publishing a release.
       - Once the final version is chosen, normalize it to both `X.Y.Z` and `vX.Y.Z` forms and check that the tag does not already exist.
       - If version references were deferred, create a focused version bump commit on `main` or on a release-prep branch/PR if the user wants review before publication.
     - Create an annotated tag `vX.Y.Z` on the merged `main` commit.
     - Push the tag.
+      - The `Publish npm package` workflow runs on `v*` tag pushes and publishes with npm Trusted Publishing. It expects:
+         - npm package name: `pkistudiojs`
+         - GitHub owner/repository: `pkistudio/pkistudiojs`
+         - workflow filename: `publish-npm.yml`
+         - npm Trusted Publishing environment: none / blank, unless the workflow is later changed to use one.
+      - If npm publish fails with `E404` or `no permission`, explain that npm Trusted Publishing or initial package ownership is not configured. Do not keep rerunning the same job until npm permissions are fixed.
+      - If the version was already published manually, do not rerun the publish job for the same tag/version; npm versions are immutable and the rerun will fail.
     - Create a GitHub Release named `vX.Y.Z` with release notes summarizing user-facing changes and referencing the issue.
     - Mark it as the latest stable release, not draft and not prerelease, unless instructed otherwise.
+      - After publication, verify `npm view pkistudiojs@X.Y.Z version dist-tags dist.tarball --json` and, when practical, perform a fresh temporary install from npm and import the package entry points.
 
 11. Confirm Final State
     - Verify:
@@ -128,6 +139,7 @@ Derive these from the invocation when possible:
       - issue is closed as completed.
       - tag exists on `main` HEAD.
       - GitHub Release is published.
+      - npm package version is published and has the expected dist-tag.
       - relevant GitHub Actions completed or are still running.
     - Final response must include issue, PR, release, tag, and any Actions status.
 
@@ -138,6 +150,7 @@ Keep the final response concise and include:
 - Issue link and state
 - PR link and merge state
 - Release link and tag
+- npm package/version status
 - Verification summary
 - Actions status
 - Any follow-up needed
