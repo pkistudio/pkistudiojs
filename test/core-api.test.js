@@ -102,6 +102,16 @@ test('loads the viewer entry point without a browser DOM', () => {
   assert.equal(viewer.core, core);
 });
 
+test('uses the configured new-window viewer URL when opening selected nodes', () => {
+  const viewerSource = fs.readFileSync(path.join(rootDir, 'app/static/pkistudio.js'), 'utf8');
+
+  assert.match(
+    viewerSource,
+    /function createNewWindowUrl\(\) \{\s+return new URL\(options\.newWindowUrl \|\| window\.location\.href, window\.location\.href\);\s+\}/
+  );
+  assert.equal(viewerSource.match(/createNewWindowUrl\(\)/g).length, 3);
+});
+
 test('reports a clear error when initializing the viewer without a browser DOM', () => {
   assert.throws(
     () => viewer.init(),

@@ -4,7 +4,7 @@ PkiStudioJS is a simplified JavaScript version of PkiStudio. It is a browser-bas
 
 A hosted version is available at https://pkistudio.github.io/pkistudiojs/.
 
-Current version: 0.4.0
+Current version: 0.4.1
 
 File contents are not uploaded to the server. The Node.js service only serves the static web application.
 
@@ -64,7 +64,7 @@ window.addEventListener('DOMContentLoaded', () => {
 });
 ```
 
-`pkistudiojs/viewer` exports `version`, `core`, `init(options)`, and `autoInit()`. The `core` property points to the loaded Core API when `pkistudio-core.js` has already been loaded in the same global context. `init(options)` accepts `oidResolver` or `oidNames` when the host application wants to use the bundled OID dictionary with custom additions or overrides. When neither option is supplied, the viewer keeps the existing behavior of fetching `options.oidUrl || 'oids.json'`.
+`pkistudiojs/viewer` exports `version`, `core`, `init(options)`, and `autoInit()`. The `core` property points to the loaded Core API when `pkistudio-core.js` has already been loaded in the same global context. `init(options)` accepts `oidResolver` or `oidNames` when the host application wants to use the bundled OID dictionary with custom additions or overrides. Use `newWindowUrl` when embedded applications should open selected DER in a standalone viewer page. When neither OID option is supplied, the viewer keeps the existing behavior of fetching `options.oidUrl || 'oids.json'`.
 
 `pkistudiojs/oid-resolver` exports a small resolver for the bundled OID dictionary:
 
