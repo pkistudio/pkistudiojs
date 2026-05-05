@@ -4,7 +4,7 @@
   if (root && root.document) root.PkiStudio = api;
 })(typeof globalThis !== 'undefined' ? globalThis : undefined, (root) => {
   let defaultInstance = null;
-  const APP_VERSION = '0.3.0';
+  const APP_VERSION = '0.4.0';
 
   function requireBrowserDom() {
     if (!root || !root.document || !root.window) {

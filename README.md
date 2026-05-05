@@ -4,7 +4,7 @@ PkiStudioJS is a simplified JavaScript version of PkiStudio. It is a browser-bas
 
 A hosted version is available at https://pkistudio.github.io/pkistudiojs/.
 
-Current version: 0.3.0
+Current version: 0.4.0
 
 File contents are not uploaded to the server. The Node.js service only serves the static web application.
 
