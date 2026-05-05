@@ -71,6 +71,8 @@ Derive these from the invocation when possible:
    - If `version` is known and the change is release-worthy, update version references together.
    - If `version` is pending, leave existing released version references unchanged during implementation and note the deferred version bump in the issue and PR.
    - For pkistudio version bumps, update at least:
+     - `package.json` `version`
+     - `app/static/pkistudio-core.js` `VERSION`
      - `app/static/pkistudio.js` `APP_VERSION`
      - `README.md` current version and any relevant feature documentation
    - Keep generated UI behavior consistent with the existing app style.
