@@ -4,7 +4,7 @@
   if (root && root.document) root.PkiStudio = api;
 })(typeof globalThis !== 'undefined' ? globalThis : undefined, (root) => {
   let defaultInstance = null;
-  const APP_VERSION = '0.4.0';
+  const APP_VERSION = '0.4.1';
 
   function requireBrowserDom() {
     if (!root || !root.document || !root.window) {
@@ -2432,7 +2432,7 @@ details[open] > summary .node-line {
         return;
       }
     
-      const url = new URL(window.location.href);
+      const url = createNewWindowUrl();
       url.searchParams.set('expand', key);
       url.searchParams.set('theme', getEffectiveTheme());
       url.hash = '';
@@ -2462,7 +2462,7 @@ details[open] > summary .node-line {
         return;
       }
     
-      const url = new URL(window.location.href);
+      const url = createNewWindowUrl();
       url.searchParams.delete('expand');
       url.searchParams.set('subtree', key);
       url.searchParams.set('theme', getEffectiveTheme());
@@ -2480,6 +2480,10 @@ details[open] > summary .node-line {
 
     function openViewerWindow(url) {
       return window.open(url.toString(), '_blank');
+    }
+
+    function createNewWindowUrl() {
+      return new URL(options.newWindowUrl || window.location.href, window.location.href);
     }
     
     async function writeClipboardText(text) {
