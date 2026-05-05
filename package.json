@@ -1,15 +1,17 @@
 {
   "name": "pkistudiojs",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "Browser ASN.1 DER/BER/PEM viewer and reusable Core API.",
   "main": "app/static/pkistudio-core.js",
   "exports": {
     ".": "./app/static/pkistudio-core.js",
     "./core": "./app/static/pkistudio-core.js",
+    "./oid-resolver": "./app/static/oid-resolver.js",
     "./viewer": "./app/static/pkistudio.js"
   },
   "files": [
     "app/static/index.html",
+    "app/static/oid-resolver.js",
     "app/static/oids.json",
     "app/static/pkistudio-core.js",
     "app/static/pkistudio.js",

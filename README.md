@@ -4,7 +4,7 @@ PkiStudioJS is a simplified JavaScript version of PkiStudio. It is a browser-bas
 
 A hosted version is available at https://pkistudio.github.io/pkistudiojs/.
 
-Current version: 0.3.0
+Current version: 0.4.0
 
 File contents are not uploaded to the server. The Node.js service only serves the static web application.
 
@@ -49,11 +49,14 @@ The viewer can also be imported from npm for browser application bundles. Import
 
 ```js
 const viewer = require('pkistudiojs/viewer');
+const oidResolver = require('pkistudiojs/oid-resolver');
 
 window.addEventListener('DOMContentLoaded', () => {
 	const studio = viewer.init({
 		mount: '#certificate-viewer',
-		oidUrl: '/path/to/oids.json',
+		oidResolver: oidResolver.create({
+			'1.2.3.4.5': 'Example Custom Extension'
+		}),
 		newWindowUrl: '/viewer.html'
 	});
 
@@ -61,7 +64,21 @@ window.addEventListener('DOMContentLoaded', () => {
 });
 ```
 
-`pkistudiojs/viewer` exports `version`, `core`, `init(options)`, and `autoInit()`. The `core` property points to the loaded Core API when `pkistudio-core.js` has already been loaded in the same global context.
+`pkistudiojs/viewer` exports `version`, `core`, `init(options)`, and `autoInit()`. The `core` property points to the loaded Core API when `pkistudio-core.js` has already been loaded in the same global context. `init(options)` accepts `oidResolver` or `oidNames` when the host application wants to use the bundled OID dictionary with custom additions or overrides. When neither option is supplied, the viewer keeps the existing behavior of fetching `options.oidUrl || 'oids.json'`.
+
+`pkistudiojs/oid-resolver` exports a small resolver for the bundled OID dictionary:
+
+```js
+const oidResolver = require('pkistudiojs/oid-resolver');
+
+console.log(oidResolver.resolve('1.2.840.113549'));
+
+const resolver = oidResolver.create({
+	'1.2.3.4.5': 'Example Custom Extension'
+});
+```
+
+Pass the resolver to `viewer.init({ oidResolver: resolver })` or to Core serializers with `serializeTree(nodes, { oidResolver: resolver })` when application-specific OIDs should be displayed by name.
 
 ## Reusing the Core API
 
@@ -95,9 +112,9 @@ The initial Core API is intentionally read-oriented. It includes:
 - `encodeNodes(nodes)` and `encodeNode(node)`: re-encode parsed ASN.1 nodes.
 - `getNodeBytes(nodes, nodeId)`: re-encode a parsed node and its subtree by node ID.
 - `decodePem(text)`, `hexToBytes(text)`, `decodeOid(bytes)`, and `encodeOid(text)`: lower-level helpers.
-- `getTagName(node)`, `describeValue(node)`, `findNodeById(nodes, id)`, and `resolveOid(oid, oidNames)`: inspection helpers.
+- `getTagName(node)`, `describeValue(node)`, `findNodeById(nodes, id)`, and `resolveOid(oid, oidNamesOrResolver)`: inspection helpers.
 
-Use `options.format` when the input should not be auto-detected. Supported values are `auto`, `der`, `ber`, `pem`, `base64`, `headerless-pem`, and `hex`. `serializeTree` accepts options such as `maxDepth`, `includeRawValue`, `includeHexPreview`, `hexPreviewLength`, and `oidNames`.
+Use `options.format` when the input should not be auto-detected. Supported values are `auto`, `der`, `ber`, `pem`, `base64`, `headerless-pem`, and `hex`. `serializeTree` accepts options such as `maxDepth`, `includeRawValue`, `includeHexPreview`, `hexPreviewLength`, `oidNames`, and `oidResolver`.
 
 Run the local checks with:
 
