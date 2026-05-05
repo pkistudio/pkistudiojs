@@ -1,6 +1,16 @@
-(() => {
+((root, factory) => {
+  const api = factory(root);
+  if (typeof module === 'object' && module.exports) module.exports = api;
+  if (root && root.document) root.PkiStudio = api;
+})(typeof globalThis !== 'undefined' ? globalThis : undefined, (root) => {
   let defaultInstance = null;
-  const APP_VERSION = '0.2.6';
+  const APP_VERSION = '0.3.0';
+
+  function requireBrowserDom() {
+    if (!root || !root.document || !root.window) {
+      throw new Error('PkiStudio viewer requires a browser DOM. Importing pkistudiojs/viewer is supported, but init() must run in a browser.');
+    }
+  }
 
   const APP_STYLES = `:host {
   color-scheme: light dark;
@@ -1346,6 +1356,7 @@ details[open] > summary .node-line {
   }
 
   function init(options = {}) {
+    requireBrowserDom();
     const mount = resolveMount(options.mount);
     const scope = createAppRoot(mount, options);
     const fileInput = scope.querySelector('#fileInput');
@@ -3486,22 +3497,30 @@ details[open] > summary .node-line {
     };
   }
 
-  window.PkiStudio = {
-    core: window.PkiStudioCore || null,
+  const api = {
+    core: root?.PkiStudioCore || null,
     init,
+    autoInit,
     version: APP_VERSION
   };
 
   function autoInit() {
-    if (defaultInstance || document.querySelector('script[data-pkistudio-auto-init="false"]')) return;
+    if (!root?.document) return null;
+    if (defaultInstance) return defaultInstance;
+    if (document.querySelector('script[data-pkistudio-auto-init="false"]')) return null;
     const mount = document.querySelector('[data-pkistudio-mount], [data-pkistudio], #pkistudio');
-    if (!mount) return;
+    if (!mount) return null;
     defaultInstance = init({ mount, fullscreen: true });
+    return defaultInstance;
   }
 
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', autoInit, { once: true });
-  } else {
-    autoInit();
+  if (root?.document) {
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', autoInit, { once: true });
+    } else {
+      autoInit();
+    }
   }
-})();
+
+  return api;
+});
