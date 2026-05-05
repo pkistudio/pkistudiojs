@@ -1,7 +1,12 @@
 const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
 const test = require('node:test');
 
 const core = require('../app/static/pkistudio-core.js');
+const packageJson = require('../package.json');
+
+const rootDir = path.join(__dirname, '..');
 
 test('parses and serializes a minimal DER document', () => {
   const document = core.parseInput(new Uint8Array([0x30, 0x03, 0x02, 0x01, 0x01]));
@@ -50,4 +55,15 @@ test('serializes OID comments with a supplied OID map', () => {
 
   assert.equal(serialized.value, '1.2.840.113549');
   assert.equal(serialized.oidName, 'rsadsi');
+});
+
+test('keeps public version metadata in sync', () => {
+  const viewerSource = fs.readFileSync(path.join(rootDir, 'app/static/pkistudio.js'), 'utf8');
+  const readme = fs.readFileSync(path.join(rootDir, 'README.md'), 'utf8');
+  const viewerVersion = viewerSource.match(/const APP_VERSION = '([^']+)'/)[1];
+  const readmeVersion = readme.match(/^Current version: (\S+)$/m)[1];
+
+  assert.equal(core.VERSION, packageJson.version);
+  assert.equal(viewerVersion, packageJson.version);
+  assert.equal(readmeVersion, packageJson.version);
 });
