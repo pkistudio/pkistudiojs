@@ -8,7 +8,7 @@
 
   function requireBrowserDom() {
     if (!root || !root.document || !root.window) {
-      throw new Error('PkiStudio viewer requires a browser DOM. Importing pkistudiojs/viewer is supported, but init() must run in a browser.');
+      throw new Error('PkiStudio viewer requires a browser DOM. Importing @pkistudio/pkistudiojs/viewer is supported, but init() must run in a browser.');
     }
   }
 
