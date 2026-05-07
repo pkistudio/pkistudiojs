@@ -1,6 +1,6 @@
 {
   "name": "@pkistudio/pkistudiojs",
-  "version": "0.4.1",
+  "version": "0.4.2",
   "description": "Browser ASN.1 DER/BER/PEM viewer and reusable Core API.",
   "repository": {
     "type": "git",
