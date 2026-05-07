@@ -102,6 +102,17 @@ test('loads the viewer entry point without a browser DOM', () => {
   assert.equal(viewer.core, core);
 });
 
+test('documents editable viewer mode controls', () => {
+  const viewerSource = fs.readFileSync(path.join(rootDir, 'app/static/pkistudio.js'), 'utf8');
+  const readme = fs.readFileSync(path.join(rootDir, 'README.md'), 'utf8');
+
+  assert.match(viewerSource, /let editable = options\.editable !== false;/);
+  assert.match(viewerSource, /function setEditable\(nextEditable\) \{/);
+  assert.match(viewerSource, /root: scope,\s+setEditable/);
+  assert.match(readme, /editable: false/);
+  assert.match(readme, /setEditable\(false\)/);
+});
+
 test('uses the configured new-window viewer URL when opening selected nodes', () => {
   const viewerSource = fs.readFileSync(path.join(rootDir, 'app/static/pkistudio.js'), 'utf8');
 
@@ -110,6 +121,18 @@ test('uses the configured new-window viewer URL when opening selected nodes', ()
     /function createNewWindowUrl\(\) \{\s+return new URL\(options\.newWindowUrl \|\| window\.location\.href, window\.location\.href\);\s+\}/
   );
   assert.equal(viewerSource.match(/createNewWindowUrl\(\)/g).length, 3);
+});
+
+test('disables document actions until data is loaded', () => {
+  const viewerSource = fs.readFileSync(path.join(rootDir, 'app/static/pkistudio.js'), 'utf8');
+
+  assert.match(viewerSource, /data-action="toggle-save-menu"[^>]* disabled>Save/);
+  assert.match(viewerSource, /data-action="save-der-file"[^>]* disabled>to File as DER/);
+  assert.match(viewerSource, /data-action="close" disabled>Close/);
+  assert.match(viewerSource, /data-action="toggle-tools-menu"[^>]*>Tools/);
+  assert.match(viewerSource, /data-action="expand-all"[^>]* disabled>Expand All/);
+  assert.match(viewerSource, /data-action="collapse-all"[^>]* disabled>Collapse All/);
+  assert.match(viewerSource, /function updateDocumentActionControls\(\) \{\s+const disabled = currentBytes === null;/);
 });
 
 test('reports a clear error when initializing the viewer without a browser DOM', () => {

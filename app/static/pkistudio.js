@@ -291,11 +291,16 @@ main {
   cursor: pointer;
 }
 
-.menu button:hover,
-.menu button:focus-visible {
+.menu button:not(:disabled):hover,
+.menu button:not(:disabled):focus-visible {
   outline: none;
   border-color: var(--hover-border);
   background: var(--hover-bg);
+}
+
+.menu button:disabled {
+  color: var(--disabled-text);
+  cursor: not-allowed;
 }
 
 .menu-group {
@@ -730,11 +735,22 @@ details[open] > summary .node-line {
   display: block;
 }
 
-.node-context-menu button:hover,
-.node-context-menu button:focus-visible {
+.context-menu-group:has(.context-submenu-trigger:disabled):hover .node-context-submenu,
+.context-menu-group:has(.context-submenu-trigger:disabled):focus-within .node-context-submenu,
+.context-menu-group:has(.context-submenu-trigger:disabled).submenu-open .node-context-submenu {
+  display: none;
+}
+
+.node-context-menu button:not(:disabled):hover,
+.node-context-menu button:not(:disabled):focus-visible {
   outline: none;
   border-color: var(--hover-border);
   background: var(--hover-bg);
+}
+
+.node-context-menu button:disabled {
+  color: var(--disabled-text);
+  cursor: not-allowed;
 }
 
 .edit-dialog {
@@ -1078,17 +1094,17 @@ details[open] > summary .node-line {
       </div>
     </div>
     <div class="menu-group">
-      <button type="button" data-action="toggle-save-menu" aria-haspopup="menu" aria-expanded="false">Save</button>
+      <button type="button" data-action="toggle-save-menu" aria-haspopup="menu" aria-expanded="false" disabled>Save</button>
       <div id="saveMenu" class="submenu" role="menu" hidden>
-        <button type="button" role="menuitem" data-action="save-der-file">to File as DER</button>
+        <button type="button" role="menuitem" data-action="save-der-file" disabled>to File as DER</button>
       </div>
     </div>
-    <button type="button" data-action="close">Close</button>
+    <button type="button" data-action="close" disabled>Close</button>
     <div class="menu-group">
       <button type="button" data-action="toggle-tools-menu" aria-haspopup="menu" aria-expanded="false">Tools</button>
       <div id="toolsMenu" class="submenu" role="menu" hidden>
-        <button type="button" role="menuitem" data-action="expand-all">Expand All</button>
-        <button type="button" role="menuitem" data-action="collapse-all">Collapse All</button>
+        <button type="button" role="menuitem" data-action="expand-all" disabled>Expand All</button>
+        <button type="button" role="menuitem" data-action="collapse-all" disabled>Collapse All</button>
       </div>
     </div>
     <button type="button" data-action="about">About</button>
@@ -1434,6 +1450,7 @@ details[open] > summary .node-line {
     const DER_CONTENT_HEX_LIMIT = 4096;
     let oidNames = {};
     let oidResolver = normalizeOidResolver(options.oidResolver || options.oidNames);
+    let editable = options.editable !== false;
     let currentBytes = null;
     let currentNodes = [];
     let nodeById = new Map();
@@ -2296,11 +2313,13 @@ details[open] > summary .node-line {
       if (currentNodes.length === 0) {
         viewer.classList.add('empty');
         viewer.innerHTML = 'All nodes have been deleted.';
+        updateDocumentActionControls();
         return;
       }
     
       viewer.classList.remove('empty');
       viewer.innerHTML = `<div class="tree">${currentNodes.map((node) => renderNode(node)).join('')}</div>`;
+      updateDocumentActionControls();
     }
     
     function rebuildDocumentFromModel() {
@@ -2538,6 +2557,11 @@ details[open] > summary .node-line {
     }
 
     async function saveCurrentDerAsFile() {
+      if (!editable) {
+        fileNotice.textContent = 'This viewer is read-only.';
+        return;
+      }
+
       if (!currentBytes) {
         fileNotice.textContent = 'Load DER, PEM, or headerless base64 data before saving.';
         return;
@@ -2725,6 +2749,24 @@ details[open] > summary .node-line {
         group.querySelector('.context-submenu-trigger')?.setAttribute('aria-expanded', String(open));
       }
     }
+
+    function setNodeActionDisabled(action, disabled) {
+      const button = nodeContextMenu.querySelector(`[data-node-action="${action}"]`);
+      if (button) button.disabled = disabled;
+    }
+
+    function updateNodeContextActionControls(node) {
+      const editingDisabled = !editable;
+      setNodeActionDisabled('insert-before', editingDisabled);
+      setNodeActionDisabled('insert-before-new-item', editingDisabled);
+      setNodeActionDisabled('insert-before-clipboard-hex', editingDisabled);
+      setNodeActionDisabled('add-child', editingDisabled || !node?.constructed);
+      setNodeActionDisabled('add-child-new-item', editingDisabled || !node?.constructed);
+      setNodeActionDisabled('add-child-clipboard-hex', editingDisabled || !node?.constructed);
+      setNodeActionDisabled('delete', editingDisabled);
+
+      if (editingDisabled) setContextSubmenuOpen(null);
+    }
     
     function setRadioValue(name, value) {
       for (const input of scope.querySelectorAll(`input[name="${name}"]`)) {
@@ -2796,11 +2838,11 @@ details[open] > summary .node-line {
 
     function setDerDialogCreateMode(createMode) {
       for (const input of derForm.querySelectorAll('input[name="derClass"], input[name="derMethod"]')) {
-        input.disabled = !createMode;
+        input.disabled = !createMode || !editable;
       }
 
-      derIndex.readOnly = !createMode;
-      derHex.readOnly = !createMode;
+      derIndex.readOnly = !createMode || !editable;
+      derHex.readOnly = !createMode || !editable;
       derForm.querySelector('[data-der-action="edit-content"]').hidden = createMode;
       derIndefinite.disabled = true;
     }
@@ -2840,12 +2882,12 @@ details[open] > summary .node-line {
       derTitle.textContent = 'Edit DER';
       derIndex.value = node.tagNumber;
       derIndefinite.checked = Boolean(node.indefinite);
-      derIndefinite.disabled = !node.constructed;
+      derIndefinite.disabled = !editable || !node.constructed;
       derLength.value = formatLengthText(node);
       derTagName.textContent = tagName;
       derValuePreview.textContent = describeValue(node);
       derHex.value = toCompactHex(valueBytes, DER_CONTENT_HEX_LIMIT);
-      editButton.disabled = !isEditableNode(node);
+      editButton.disabled = !editable || !isEditableNode(node);
       editButton.title = editButton.disabled ? `${tagName} cannot be edited in detail yet` : '';
       setRadioValue('derClass', node.tagClass);
       setRadioValue('derMethod', node.constructed ? 'constructed' : 'primitive');
@@ -2854,6 +2896,7 @@ details[open] > summary .node-line {
     }
 
     function showCreateDerDialog(mode, node) {
+      if (!editable) return;
       activeDerMode = mode;
       activeDerNodeId = node.id;
       setDerDialogCreateMode(true);
@@ -2962,6 +3005,7 @@ details[open] > summary .node-line {
       extractedButton.hidden = !(node?.encapsulated && node.children.length > 0);
       activeContextNodeId = nodeId;
       setContextSubmenuOpen(null);
+      updateNodeContextActionControls(node);
       nodeContextMenu.classList.remove('open-left');
       nodeContextMenu.hidden = false;
     
@@ -2987,6 +3031,7 @@ details[open] > summary .node-line {
       viewer.classList.add('empty');
       viewer.innerHTML = 'No DER / PEM file selected yet.';
       fileNotice.textContent = 'PEM and headerless base64 input are decoded before parsing.';
+      updateDocumentActionControls();
     }
     
     async function renderFile(file) {
@@ -3004,6 +3049,7 @@ details[open] > summary .node-line {
         hideTimeDialog();
         hideOctetDialog();
         hideClipboardInsertDialog();
+        updateDocumentActionControls();
         viewer.classList.remove('empty');
         viewer.innerHTML = `<div class="error"><strong>Could not parse as DER.</strong><br>${escapeHtml(error.message)}</div>`;
       }
@@ -3095,9 +3141,43 @@ details[open] > summary .node-line {
       hideSaveMenu();
       hideToolsMenu();
     }
+
+    function updateDocumentActionControls() {
+      const disabled = currentBytes === null;
+      const saveButton = menu.querySelector('[data-action="toggle-save-menu"]');
+      const saveDerButton = menu.querySelector('[data-action="save-der-file"]');
+      const closeButton = menu.querySelector('[data-action="close"]');
+      const expandAllButton = menu.querySelector('[data-action="expand-all"]');
+      const collapseAllButton = menu.querySelector('[data-action="collapse-all"]');
+
+      for (const button of [saveButton, saveDerButton]) {
+        if (button) button.disabled = disabled || !editable;
+      }
+
+      for (const button of [closeButton, expandAllButton, collapseAllButton]) {
+        if (button) button.disabled = disabled;
+      }
+
+      if (disabled || !editable) hideSaveMenu();
+    }
+
+    function setEditable(nextEditable) {
+      editable = Boolean(nextEditable);
+      updateDocumentActionControls();
+      updateNodeContextActionControls(nodeById.get(activeContextNodeId));
+
+      if (!editable) {
+        hideDerDialog();
+        hideEditDialog();
+        hideTimeDialog();
+        hideOctetDialog();
+        hideClipboardInsertDialog();
+      }
+    }
     
     function toggleTopMenu(buttonAction, submenu) {
       const button = menu.querySelector(`[data-action="${buttonAction}"]`);
+      if (button?.disabled) return;
       const willOpen = submenu.hidden;
       hideTopMenus();
       submenu.hidden = !willOpen;
@@ -3108,6 +3188,7 @@ details[open] > summary .node-line {
     menu.addEventListener('click', async (event) => {
       const button = event.target.closest('button[data-action]');
       if (!button) return;
+      if (button.disabled) return;
     
       if (button.dataset.action === 'toggle-load-menu') {
         toggleTopMenu('toggle-load-menu', loadMenu);
@@ -3169,6 +3250,7 @@ details[open] > summary .node-line {
     nodeContextMenu.addEventListener('click', async (event) => {
       const button = event.target.closest('button[data-node-action]');
       if (!button) return;
+      if (button.disabled) return;
     
       if (button.classList.contains('context-submenu-trigger')) {
         event.preventDefault();
@@ -3236,6 +3318,11 @@ details[open] > summary .node-line {
     
     derForm.addEventListener('submit', (event) => {
       event.preventDefault();
+      if (!editable) {
+        hideDerDialog();
+        return;
+      }
+
       if (activeDerMode === 'insert-before' || activeDerMode === 'add-child') {
         try {
           const targetNodeId = activeDerNodeId;
@@ -3515,7 +3602,8 @@ details[open] > summary .node-line {
       getNodeBytes,
       loadBytes: renderDerBytes,
       mount,
-      root: scope
+      root: scope,
+      setEditable
     };
   }
 
