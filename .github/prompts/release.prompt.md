@@ -22,6 +22,32 @@ Expected invocation examples:
 
 The release version may be omitted or set to `TBD` when development should proceed before the final version is known. If an existing issue number is supplied, use that issue instead of creating a duplicate issue. If the feature summary, desired release scope, issue reference, or whether a known-looking first argument is a version is unclear, ask concise clarifying questions before making changes. Otherwise proceed proactively.
 
+## Default Operating Mode
+
+When this prompt is invoked, proceed through the workflow without restating the full release procedure to the user. Treat the issue-to-release flow as the standard path and keep progress updates brief.
+
+Default assumptions:
+
+- If no issue number is supplied, create a tracking issue first.
+- If an issue number is supplied, use that issue as the source of truth.
+- Create a branch from the issue, implement the requested change, verify it, push it, and open a PR.
+- Use the PR body and issue comments to preserve the release rationale, release notes draft, verification results, and publication status.
+- Do not merge, tag, publish, or create a GitHub Release until the user explicitly says to proceed.
+
+Ask only when:
+
+- The requested version is missing and the workflow has reached a version-required step.
+- The working tree has unrelated uncommitted changes.
+- npm or GitHub permissions block progress.
+- The issue requirements are ambiguous enough that implementation could go in the wrong direction.
+
+Confirmation gates:
+
+- Gate 1: PR merge.
+- Gate 2: version bump, tag, and GitHub Release creation.
+- Gate 3: npm publication or publish workflow rerun.
+- Gate 4: post-publication registry and fresh-install verification.
+
 ## Required Safety Rules
 
 - This prompt is a workflow guide only and does not grant repository permissions.
@@ -45,6 +71,35 @@ Derive these from the invocation when possible:
 - `summary`: short feature or fix summary.
 - `issueBody`: issue requirements. If the user supplied detailed requirements, preserve them.
 - `verificationPlan`: expected local checks. If not supplied, infer from the changed area.
+
+## Standard Record Templates
+
+Use these headings for new release tracking issues unless the issue already has a better structure:
+
+```md
+## Background
+## Scope
+## Release notes draft
+## Verification
+## Publication status
+```
+
+Use this shape for PR bodies:
+
+```md
+Summary:
+- ...
+
+Release notes draft:
+...
+
+Verification:
+- `npm test`
+- `npm run check`
+- `npm pack --dry-run`
+
+Closes #<issue-number>
+```
 
 ## Workflow
 
@@ -127,7 +182,9 @@ Derive these from the invocation when possible:
          - GitHub owner/repository: `pkistudio/pkistudiojs`
          - workflow filename: `publish-npm.yml`
          - npm Trusted Publishing environment: none / blank, unless the workflow is later changed to use one.
+      - For scoped npm packages, `E404` during publish can mean the package does not exist yet or the workflow/account lacks scope permission.
       - If npm publish fails with `E404` or `no permission`, explain that npm Trusted Publishing or initial package ownership is not configured. Do not keep rerunning the same job until npm permissions are fixed.
+      - Do not create a new tag just to retry npm publication when the version and tag are already correct. After fixing npm permissions or Trusted Publishing, rerun the failed publish workflow or publish manually from an authorized npm account.
       - If the version was already published manually, do not rerun the publish job for the same tag/version; npm versions are immutable and the rerun will fail.
     - Create a GitHub Release named `vX.Y.Z` with release notes summarizing user-facing changes and referencing the issue.
     - Mark it as the latest stable release, not draft and not prerelease, unless instructed otherwise.
