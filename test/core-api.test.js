@@ -6,8 +6,8 @@ const test = require('node:test');
 const core = require('../app/static/pkistudio-core.js');
 const packageJson = require('../package.json');
 const viewer = require('../app/static/pkistudio.js');
-const exportedViewer = require('pkistudiojs/viewer');
-const oidResolver = require('pkistudiojs/oid-resolver');
+const exportedViewer = require('@pkistudio/pkistudiojs/viewer');
+const oidResolver = require('@pkistudio/pkistudiojs/oid-resolver');
 
 const rootDir = path.join(__dirname, '..');
 

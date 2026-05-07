@@ -2,7 +2,7 @@
 
 ## Goal
 
-Make `pkistudiojs/viewer` a proper npm public API for browser applications that want to embed the PkiStudioJS viewer as an internal viewer/editor.
+Make `@pkistudio/pkistudiojs/viewer` a proper npm public API for browser applications that want to embed the PkiStudioJS viewer as an internal viewer/editor.
 
 The viewer is still a browser UI component. Importing it in Node-like module evaluation contexts should be safe, but rendering and editing require a browser DOM.
 
@@ -45,14 +45,14 @@ The current integration is deeper than simple display. A stable npm viewer API m
 
 `package.json` exports `./viewer` as `./app/static/pkistudio.js`, but that file is a browser script that directly references `window` and `document` at module top level.
 
-That means `require('pkistudiojs/viewer')` is misleading: consumers may expect it to be importable, but module evaluation can fail outside a browser DOM.
+That means `require('@pkistudio/pkistudiojs/viewer')` is misleading if module evaluation can fail outside a browser DOM.
 
 ## Proposed API
 
 CommonJS should work first because the package is currently CommonJS:
 
 ```js
-const viewer = require('pkistudiojs/viewer');
+const viewer = require('@pkistudio/pkistudiojs/viewer');
 
 const instance = viewer.init({
   mount: '#viewerMount',
@@ -90,7 +90,7 @@ Keep the existing browser asset usable by script tags, but wrap it so it is also
 6. Make `init()` throw a clear error if called without a browser DOM.
 7. Run auto-init only when a browser DOM exists.
 
-This keeps the package simple and avoids a build step while making `pkistudiojs/viewer` honest as an npm export.
+This keeps the package simple and avoids a build step while making `@pkistudio/pkistudiojs/viewer` honest as an npm export.
 
 ## Follow-Up API Improvements
 
@@ -107,8 +107,8 @@ These do not need to be completed in the first import-safe change, but the desig
 
 ## Acceptance Criteria
 
-- `require('pkistudiojs/viewer')` succeeds in Node without a DOM.
-- `require('pkistudiojs/viewer').init()` without a DOM throws a clear browser-DOM-required error.
+- `require('@pkistudio/pkistudiojs/viewer')` succeeds in Node without a DOM.
+- `require('@pkistudio/pkistudiojs/viewer').init()` without a DOM throws a clear browser-DOM-required error.
 - Existing script-tag usage still sets `window.PkiStudio`.
 - Existing manual browser initialization still works.
 - Existing auto-init behavior still works unless `data-pkistudio-auto-init="false"` is present.
@@ -117,8 +117,8 @@ These do not need to be completed in the first import-safe change, but the desig
 
 ## Suggested Issue Title
 
-Make `pkistudiojs/viewer` import-safe for embedded browser applications
+Make `@pkistudio/pkistudiojs/viewer` import-safe for embedded browser applications
 
 ## Suggested Issue Body
 
-Prepare `pkistudiojs/viewer` as a real npm public API for applications such as `pkistudio/pvkgadgets`, which embeds PkiStudioJS as an internal ASN.1 viewer/editor. The viewer should remain browser-only at runtime, but importing the module should be safe in Node-like module evaluation contexts. Preserve the current script-tag API and manual initialization behavior while adding tests and documentation for npm usage.
+Prepare `@pkistudio/pkistudiojs/viewer` as a real npm public API for applications such as `pkistudio/pvkgadgets`, which embeds PkiStudioJS as an internal ASN.1 viewer/editor. The viewer should remain browser-only at runtime, but importing the module should be safe in Node-like module evaluation contexts. Preserve the current script-tag API and manual initialization behavior while adding tests and documentation for npm usage.

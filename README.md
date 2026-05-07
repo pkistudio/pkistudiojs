@@ -4,7 +4,7 @@ PkiStudioJS is a simplified JavaScript version of PkiStudio. It is a browser-bas
 
 A hosted version is available at https://pkistudio.github.io/pkistudiojs/.
 
-Current version: 0.4.1
+Current version: 0.4.2
 
 File contents are not uploaded to the server. The Node.js service only serves the static web application.
 
@@ -47,9 +47,13 @@ The object returned by `window.PkiStudio.init()` exposes `loadBytes(bytes, notic
 
 The viewer can also be imported from npm for browser application bundles. Importing the module is safe in Node-like module evaluation contexts, but `init()` still requires a browser DOM:
 
+```sh
+npm install @pkistudio/pkistudiojs
+```
+
 ```js
-const viewer = require('pkistudiojs/viewer');
-const oidResolver = require('pkistudiojs/oid-resolver');
+const viewer = require('@pkistudio/pkistudiojs/viewer');
+const oidResolver = require('@pkistudio/pkistudiojs/oid-resolver');
 
 window.addEventListener('DOMContentLoaded', () => {
 	const studio = viewer.init({
@@ -64,12 +68,12 @@ window.addEventListener('DOMContentLoaded', () => {
 });
 ```
 
-`pkistudiojs/viewer` exports `version`, `core`, `init(options)`, and `autoInit()`. The `core` property points to the loaded Core API when `pkistudio-core.js` has already been loaded in the same global context. `init(options)` accepts `oidResolver` or `oidNames` when the host application wants to use the bundled OID dictionary with custom additions or overrides. Use `newWindowUrl` when embedded applications should open selected DER in a standalone viewer page. When neither OID option is supplied, the viewer keeps the existing behavior of fetching `options.oidUrl || 'oids.json'`.
+`@pkistudio/pkistudiojs/viewer` exports `version`, `core`, `init(options)`, and `autoInit()`. The `core` property points to the loaded Core API when `pkistudio-core.js` has already been loaded in the same global context. `init(options)` accepts `oidResolver` or `oidNames` when the host application wants to use the bundled OID dictionary with custom additions or overrides. Use `newWindowUrl` when embedded applications should open selected DER in a standalone viewer page. When neither OID option is supplied, the viewer keeps the existing behavior of fetching `options.oidUrl || 'oids.json'`.
 
-`pkistudiojs/oid-resolver` exports a small resolver for the bundled OID dictionary:
+`@pkistudio/pkistudiojs/oid-resolver` exports a small resolver for the bundled OID dictionary:
 
 ```js
-const oidResolver = require('pkistudiojs/oid-resolver');
+const oidResolver = require('@pkistudio/pkistudiojs/oid-resolver');
 
 console.log(oidResolver.resolve('1.2.840.113549'));
 
@@ -82,10 +86,10 @@ Pass the resolver to `viewer.init({ oidResolver: resolver })` or to Core seriali
 
 ## Reusing the Core API
 
-PkiStudioJS also ships a small Core API for code that needs ASN.1 parsing without mounting the browser UI. The package entry point and `pkistudiojs/core` export both resolve to `app/static/pkistudio-core.js`:
+PkiStudioJS also ships a small Core API for code that needs ASN.1 parsing without mounting the browser UI. The package entry point and `@pkistudio/pkistudiojs/core` export both resolve to `app/static/pkistudio-core.js`:
 
 ```js
-const pkistudio = require('pkistudiojs');
+const pkistudio = require('@pkistudio/pkistudiojs');
 
 const document = pkistudio.parseInput(
 	new Uint8Array([0x30, 0x03, 0x02, 0x01, 0x01])

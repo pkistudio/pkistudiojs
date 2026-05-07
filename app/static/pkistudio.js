@@ -4,11 +4,11 @@
   if (root && root.document) root.PkiStudio = api;
 })(typeof globalThis !== 'undefined' ? globalThis : undefined, (root) => {
   let defaultInstance = null;
-  const APP_VERSION = '0.4.1';
+  const APP_VERSION = '0.4.2';
 
   function requireBrowserDom() {
     if (!root || !root.document || !root.window) {
-      throw new Error('PkiStudio viewer requires a browser DOM. Importing pkistudiojs/viewer is supported, but init() must run in a browser.');
+      throw new Error('PkiStudio viewer requires a browser DOM. Importing @pkistudio/pkistudiojs/viewer is supported, but init() must run in a browser.');
     }
   }
 
