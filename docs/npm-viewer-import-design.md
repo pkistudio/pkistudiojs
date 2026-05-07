@@ -33,9 +33,10 @@ The current integration is deeper than simple display. A stable npm viewer API m
 - `init(options)` returns a viewer instance.
 - The instance exposes `loadBytes(bytes, notice)` to display selected DER data.
 - The instance exposes `getNodeBytes(nodeId)` so host applications can read edited DER back from the viewer.
+- The instance exposes `setEditable(editable)` so host applications can switch between editable and read-only viewer modes.
 - The instance exposes `close()` so the host can clear the viewer when no DER object is selected.
 - The instance exposes `root`, currently a `DocumentFragment` or `Element`, so host applications can add embedded styles and listen for internal viewer events.
-- The instance accepts `mount`, `oidUrl`, `newWindowUrl`, `shadowRoot`, and `fullscreen` options.
+- The instance accepts `mount`, `oidUrl`, `newWindowUrl`, `shadowRoot`, `fullscreen`, and `editable` options.
 - `newWindowUrl` must continue to let embedded apps send selected DER to a standalone viewer-only page.
 - Direct script-tag usage must continue to set `window.PkiStudio`.
 - `data-pkistudio-auto-init="false"` must continue to suppress browser auto-initialization.
@@ -94,10 +95,9 @@ This keeps the package simple and avoids a build step while making `@pkistudio/p
 
 ## Follow-Up API Improvements
 
-The pvkgadgets integration currently reaches into viewer internals for readonly behavior. A better long-term API would reduce reliance on internal selectors:
+The viewer now supports a first-class `editable` option and `setEditable(editable)` method. Further long-term API improvements could reduce other reliance on internal selectors:
 
 - `editable: boolean | (context) => boolean`
-- `setEditable(editable)` on the instance
 - `hiddenActions` or `disabledActions`
 - `onChange(callback)` for edited document bytes
 - `onNotice(callback)` for host-managed status display
@@ -112,7 +112,7 @@ These do not need to be completed in the first import-safe change, but the desig
 - Existing script-tag usage still sets `window.PkiStudio`.
 - Existing manual browser initialization still works.
 - Existing auto-init behavior still works unless `data-pkistudio-auto-init="false"` is present.
-- `pvkgadgets` can migrate from vendored script tags to an npm dependency without losing `loadBytes`, `getNodeBytes`, `close`, `root`, `oidUrl`, `newWindowUrl`, `fullscreen`, or Shadow DOM behavior.
+- `pvkgadgets` can migrate from vendored script tags to an npm dependency without losing `loadBytes`, `getNodeBytes`, `setEditable`, `close`, `root`, `oidUrl`, `newWindowUrl`, `fullscreen`, `editable`, or Shadow DOM behavior.
 - `npm test`, `npm run check`, and `npm pack --dry-run` pass.
 
 ## Suggested Issue Title

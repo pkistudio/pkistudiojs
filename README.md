@@ -43,7 +43,7 @@ The bundled viewer fills the available browser content area under the top menu, 
 
 The viewer follows the browser or operating system light/dark theme preference. The selected node actions, dialogs, notices, tree display, and new-window views use the same effective theme.
 
-The object returned by `window.PkiStudio.init()` exposes `loadBytes(bytes, notice)`, `getNodeBytes(nodeId)`, `close()`, `mount`, and `root`. `getNodeBytes(nodeId)` returns a `Uint8Array` containing the selected ASN.1 node and its subtree as DER bytes. Node IDs are visible in the generated tree markup as `data-node-id` attributes and match the IDs assigned by the Core API serializer for the same parsed document.
+The object returned by `window.PkiStudio.init()` exposes `loadBytes(bytes, notice)`, `getNodeBytes(nodeId)`, `setEditable(editable)`, `close()`, `mount`, and `root`. `getNodeBytes(nodeId)` returns a `Uint8Array` containing the selected ASN.1 node and its subtree as DER bytes. Node IDs are visible in the generated tree markup as `data-node-id` attributes and match the IDs assigned by the Core API serializer for the same parsed document.
 
 The viewer can also be imported from npm for browser application bundles. Importing the module is safe in Node-like module evaluation contexts, but `init()` still requires a browser DOM:
 
@@ -68,7 +68,7 @@ window.addEventListener('DOMContentLoaded', () => {
 });
 ```
 
-`@pkistudio/pkistudiojs/viewer` exports `version`, `core`, `init(options)`, and `autoInit()`. The `core` property points to the loaded Core API when `pkistudio-core.js` has already been loaded in the same global context. `init(options)` accepts `oidResolver` or `oidNames` when the host application wants to use the bundled OID dictionary with custom additions or overrides. Use `newWindowUrl` when embedded applications should open selected DER in a standalone viewer page. When neither OID option is supplied, the viewer keeps the existing behavior of fetching `options.oidUrl || 'oids.json'`.
+`@pkistudio/pkistudiojs/viewer` exports `version`, `core`, `init(options)`, and `autoInit()`. The `core` property points to the loaded Core API when `pkistudio-core.js` has already been loaded in the same global context. `init(options)` accepts `oidResolver` or `oidNames` when the host application wants to use the bundled OID dictionary with custom additions or overrides. Use `newWindowUrl` when embedded applications should open selected DER in a standalone viewer page. Pass `editable: false` to initialize the viewer in read-only mode; the returned instance can later switch modes with `setEditable(false)` or `setEditable(true)`. When neither OID option is supplied, the viewer keeps the existing behavior of fetching `options.oidUrl || 'oids.json'`.
 
 `@pkistudio/pkistudiojs/oid-resolver` exports a small resolver for the bundled OID dictionary:
 
