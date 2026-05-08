@@ -32,7 +32,8 @@ Default assumptions:
 - If an issue number is supplied, use that issue as the source of truth.
 - Create a branch from the issue, implement the requested change, verify it, push it, and open a PR.
 - Use the PR body and issue comments to preserve the release rationale, release notes draft, verification results, and publication status.
-- Do not merge, tag, publish, or create a GitHub Release until the user explicitly says to proceed.
+- Do not merge the PR until the user explicitly says to proceed.
+- After merge is explicitly approved and required versions, credentials, and checks are in place, continue through version bump, tagging, GitHub Release creation, npm publication or workflow rerun, and post-publication verification without asking for separate confirmations unless something is blocked or ambiguous.
 
 Ask only when:
 
@@ -41,12 +42,10 @@ Ask only when:
 - npm or GitHub permissions block progress.
 - The issue requirements are ambiguous enough that implementation could go in the wrong direction.
 
-Confirmation gates:
+Confirmation gate:
 
 - Gate 1: PR merge.
-- Gate 2: version bump, tag, and GitHub Release creation.
-- Gate 3: npm publication or publish workflow rerun.
-- Gate 4: post-publication registry and fresh-install verification.
+- Post-merge release and publication steps should proceed proactively once prerequisites are satisfied.
 
 ## Required Safety Rules
 
@@ -58,7 +57,8 @@ Confirmation gates:
 - Never discard uncommitted user changes.
 - If unrelated local changes exist, stop and ask how to proceed.
 - Create implementation work on a feature branch, never directly on `main`.
-- Do not merge the PR or publish the release until the user confirms they have reviewed the behavior, unless the user explicitly asks to proceed without that confirmation.
+- Do not merge the PR until the user confirms they have reviewed the behavior, unless the user explicitly asks to proceed without that confirmation.
+- After merge approval, do not add extra confirmation gates for release publication, npm publication, workflow reruns, or post-publication verification unless permissions, version choice, failed checks, or ambiguous release intent require user input.
 - Use existing repository patterns and keep changes focused on the requested issue.
 - Use non-interactive git commands.
 
