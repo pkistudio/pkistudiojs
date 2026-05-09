@@ -4,7 +4,7 @@ PkiStudioJS is a simplified JavaScript version of PkiStudio. It is a browser-bas
 
 A hosted version is available at https://pkistudio.github.io/pkistudiojs/.
 
-Current version: 0.5.0
+Current version: 0.6.0
 
 File contents are not uploaded to the server. The Node.js service only serves the static web application.
 
@@ -242,6 +242,8 @@ New-window actions transfer DER bytes through browser `localStorage` and add tem
 ## Editing
 
 pkistudio can edit primitive nodes and then re-encode the DER tree. Constructed nodes such as `SEQUENCE` and `SET` are inspectable but are not edited directly. Their length mode can be switched between definite and indefinite in the DER inspector.
+
+The DER inspector can also edit an existing node's identifier class and tag index. The primitive or structured method is kept unchanged for existing nodes. Before applying an identifier change, pkistudio validates the current content against the selected universal tag, so changes such as `OCTET STRING` to `PrintableString` are rejected when the existing bytes are not valid for the target tag.
 
 Editable text-like values include:
 
