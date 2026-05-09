@@ -4,7 +4,7 @@
   if (root && root.document) root.PkiStudio = api;
 })(typeof globalThis !== 'undefined' ? globalThis : undefined, (root) => {
   let defaultInstance = null;
-  const APP_VERSION = '0.5.0';
+  const APP_VERSION = '0.6.0';
 
   function requireBrowserDom() {
     if (!root || !root.document || !root.window) {
@@ -869,6 +869,11 @@ details[open] > summary .node-line {
   text-overflow: ellipsis;
   white-space: nowrap;
   font-family: Consolas, "Courier New", monospace;
+}
+
+.der-value-preview.der-value-error {
+  color: var(--danger);
+  font-weight: 700;
 }
 
 .der-panel textarea {
@@ -1916,6 +1921,67 @@ details[open] > summary .node-line {
           break;
       }
     }
+
+    function decodeUtf8Strict(bytes) {
+      return new TextDecoder('utf-8', { fatal: true }).decode(bytes);
+    }
+
+    function validateOidValue(bytes) {
+      const oid = decodeOid(bytes);
+      if (!oid) throw new Error('OBJECT IDENTIFIER content must not be empty');
+      if (!bytesEqual(encodeOid(oid), bytes)) throw new Error('OBJECT IDENTIFIER content is not valid DER');
+    }
+
+    function validateUniversalPrimitiveValue(node) {
+      const value = getNodeValueBytes(node);
+
+      switch (node.tagNumber) {
+        case 1:
+          if (value.length !== 1) throw new Error('BOOLEAN content must be exactly one byte');
+          break;
+        case 2:
+        case 10:
+          if (value.length === 0) throw new Error(`${getTagName(node)} content must not be empty`);
+          break;
+        case 3:
+          if (value.length === 0) throw new Error('BIT STRING content must include an unused-bits byte');
+          if (value[0] > 7) throw new Error('BIT STRING unused bits must be 0..7');
+          if (value.length === 1 && value[0] !== 0) throw new Error('BIT STRING unused bits must be 0 when the data is empty');
+          break;
+        case 5:
+          if (value.length !== 0) throw new Error('NULL content must be empty');
+          break;
+        case 6:
+          validateOidValue(value);
+          break;
+        case 12:
+          decodeUtf8Strict(value);
+          break;
+        case 18:
+        case 19:
+        case 20:
+        case 22:
+          validateStringValue(node, decodeAscii(value));
+          break;
+        case 23:
+        case 24:
+          validateStringValue(node, decodeAscii(value));
+          parseDerTime(node, decodeAscii(value));
+          break;
+        case 30:
+          if (value.length % 2 !== 0) throw new Error('BMPString content must contain an even number of bytes');
+          break;
+        default:
+          break;
+      }
+    }
+
+    function validateNodeIdentifier(node) {
+      if (!Number.isInteger(node.tagClass) || node.tagClass < 0 || node.tagClass > 3) throw new Error('Select a valid class');
+      if (!Number.isSafeInteger(node.tagNumber) || node.tagNumber < 0) throw new Error('Index must be a non-negative integer');
+      if (node.tagClass === 0 && node.tagNumber === 0) throw new Error('EndOfContent is controlled by indefinite-length structured nodes');
+      if (node.tagClass === 0 && !node.constructed) validateUniversalPrimitiveValue(node);
+    }
     
     function isEditableTextNode(node) {
       return node.tagClass === 0 && [12, 18, 19, 20, 22, 23, 24, 30].includes(node.tagNumber);
@@ -2378,11 +2444,8 @@ details[open] > summary .node-line {
       const constructed = getCheckedValue('derMethod') === 'constructed';
       const tagNumber = Number(derIndex.value);
 
-      if (!Number.isInteger(tagClass) || tagClass < 0 || tagClass > 3) throw new Error('Select a valid class');
-      if (!Number.isSafeInteger(tagNumber) || tagNumber < 0) throw new Error('Index must be a non-negative integer');
-
       const valueBytes = constructed ? new Uint8Array() : hexToBytesAllowEmpty(derHex.value);
-      return {
+      const node = {
         tagClass,
         constructed,
         tagNumber,
@@ -2400,6 +2463,36 @@ details[open] > summary .node-line {
         dirty: true,
         validationError: ''
       };
+      validateNodeIdentifier(node);
+      return node;
+    }
+
+    function createNodeWithEditedIdentifier(node) {
+      return {
+        ...node,
+        tagClass: Number(getCheckedValue('derClass')),
+        tagNumber: Number(derIndex.value),
+        constructed: node.constructed
+      };
+    }
+
+    function updateNodeIdentifier(nodeId) {
+      const node = nodeById.get(nodeId);
+      if (!node) throw new Error('The node to update was not found');
+      if (node.eoc) throw new Error('EndOfContent is controlled by the parent indefinite length setting');
+
+      const nextNode = createNodeWithEditedIdentifier(node);
+      validateNodeIdentifier(nextNode);
+      const changed = node.tagClass !== nextNode.tagClass || node.tagNumber !== nextNode.tagNumber;
+      if (!changed) return '';
+
+      const oldTagName = getTagName(node);
+      node.tagClass = nextNode.tagClass;
+      node.tagNumber = nextNode.tagNumber;
+      node.dirty = true;
+      node.validationError = '';
+      rebuildDocumentFromModel();
+      return `${oldTagName} tag changed to ${getTagName(nextNode)}.`;
     }
 
     function insertNodeBefore(targetNodeId, newNode) {
@@ -2837,37 +2930,73 @@ details[open] > summary .node-line {
     }
 
     function setDerDialogCreateMode(createMode) {
-      for (const input of derForm.querySelectorAll('input[name="derClass"], input[name="derMethod"]')) {
+      for (const input of derForm.querySelectorAll('input[name="derClass"]')) {
+        input.disabled = !editable;
+      }
+
+      for (const input of derForm.querySelectorAll('input[name="derMethod"]')) {
         input.disabled = !createMode || !editable;
       }
 
-      derIndex.readOnly = !createMode || !editable;
+      derIndex.readOnly = !editable;
       derHex.readOnly = !createMode || !editable;
       derForm.querySelector('[data-der-action="edit-content"]').hidden = createMode;
       derIndefinite.disabled = true;
     }
 
-    function updateDerCreatePreview() {
-      if (activeDerMode === 'view') return;
+    function setDerPreviewText(text, isError = false) {
+      const submitButton = derForm.querySelector('button[type="submit"]');
+      derValuePreview.textContent = text;
+      derValuePreview.classList.toggle('der-value-error', isError);
+      if (submitButton) submitButton.disabled = isError || !editable;
+    }
 
+    function updateDerPreview() {
       const constructed = getCheckedValue('derMethod') === 'constructed';
+
+      if (activeDerMode === 'view') {
+        const node = nodeById.get(activeDerNodeId);
+        if (!node) return;
+
+        try {
+          const previewNode = createNodeWithEditedIdentifier(node);
+          validateNodeIdentifier(previewNode);
+          derTagName.textContent = getTagName(previewNode);
+          setDerPreviewText(describeValue(previewNode));
+        } catch (error) {
+          derTagName.textContent = '';
+          setDerPreviewText(error.message, true);
+        }
+        return;
+      }
+
       derHex.readOnly = constructed;
       derIndefinite.disabled = !constructed;
       if (constructed) {
         derLength.value = derIndefinite.checked ? 'Indefinite' : '0';
-        derValuePreview.textContent = derIndefinite.checked ? 'Structured content ends with EndOfContent.' : 'Structured content starts empty.';
+        try {
+          const previewNode = createNodeFromDerForm();
+          derTagName.textContent = getTagName(previewNode);
+          setDerPreviewText(derIndefinite.checked ? 'Structured content ends with EndOfContent.' : 'Structured content starts empty.');
+        } catch (error) {
+          derTagName.textContent = '';
+          setDerPreviewText(error.message, true);
+        }
         return;
       }
 
       derIndefinite.checked = false;
 
       try {
-        const valueBytes = hexToBytesAllowEmpty(derHex.value);
+        const previewNode = createNodeFromDerForm();
+        const valueBytes = getNodeValueBytes(previewNode);
         derLength.value = String(valueBytes.length);
-        derValuePreview.textContent = valueBytes.length ? `${valueBytes.length} byte${valueBytes.length === 1 ? '' : 's'}` : '(empty)';
+        derTagName.textContent = getTagName(previewNode);
+        setDerPreviewText(valueBytes.length ? `${valueBytes.length} byte${valueBytes.length === 1 ? '' : 's'}` : '(empty)');
       } catch (error) {
         derLength.value = '';
-        derValuePreview.textContent = error.message;
+        derTagName.textContent = '';
+        setDerPreviewText(error.message, true);
       }
     }
     
@@ -2885,7 +3014,7 @@ details[open] > summary .node-line {
       derIndefinite.disabled = !editable || !node.constructed;
       derLength.value = formatLengthText(node);
       derTagName.textContent = tagName;
-      derValuePreview.textContent = describeValue(node);
+      setDerPreviewText(describeValue(node));
       derHex.value = toCompactHex(valueBytes, DER_CONTENT_HEX_LIMIT);
       editButton.disabled = !editable || !isEditableNode(node);
       editButton.title = editButton.disabled ? `${tagName} cannot be edited in detail yet` : '';
@@ -2908,7 +3037,7 @@ details[open] > summary .node-line {
       derHex.value = '';
       setRadioValue('derClass', 0);
       setRadioValue('derMethod', 'primitive');
-      updateDerCreatePreview();
+      updateDerPreview();
       derDialog.hidden = false;
       derIndex.focus();
       derIndex.select();
@@ -3337,28 +3466,40 @@ details[open] > summary .node-line {
           }
           hideDerDialog();
         } catch (error) {
-          derValuePreview.textContent = error.message;
+          setDerPreviewText(error.message, true);
         }
         return;
       }
 
       const node = nodeById.get(activeDerNodeId);
-      if (node?.constructed && node.indefinite !== derIndefinite.checked) {
+      let noticeText = '';
+
+      try {
+        noticeText = updateNodeIdentifier(activeDerNodeId);
+      } catch (error) {
+        setDerPreviewText(error.message, true);
+        return;
+      }
+
+      const nextNode = nodeById.get(activeDerNodeId);
+      const nodeForLength = nextNode || node;
+      if (nodeForLength?.constructed && nodeForLength.indefinite !== derIndefinite.checked) {
         try {
-          const tagName = getTagName(node);
-          updateNodeIndefinite(node.id, derIndefinite.checked);
-          fileNotice.textContent = `${tagName} length set to ${derIndefinite.checked ? 'Indefinite' : 'definite'}.`;
+          const tagName = getTagName(nodeForLength);
+          updateNodeIndefinite(nodeForLength.id, derIndefinite.checked);
+          noticeText = `${noticeText ? `${noticeText} ` : ''}${tagName} length set to ${derIndefinite.checked ? 'Indefinite' : 'definite'}.`;
         } catch (error) {
-          derValuePreview.textContent = error.message;
+          setDerPreviewText(error.message, true);
           return;
         }
       }
+
+      if (noticeText) fileNotice.textContent = noticeText;
 
       hideDerDialog();
     });
 
     derForm.addEventListener('input', (event) => {
-      if (activeDerMode === 'view') return;
       if (event.target === derIndex) {
         const previewNode = {
           tagClass: Number(getCheckedValue('derClass')),
@@ -3367,11 +3508,10 @@ details[open] > summary .node-line {
         };
         derTagName.textContent = Number.isSafeInteger(previewNode.tagNumber) && previewNode.tagNumber >= 0 ? getTagName(previewNode) : '';
       }
-      updateDerCreatePreview();
+      updateDerPreview();
     });
 
     derForm.addEventListener('change', (event) => {
-      if (activeDerMode === 'view') return;
       if (event.target.name === 'derClass' || event.target.name === 'derMethod') {
         const previewNode = {
           tagClass: Number(getCheckedValue('derClass')),
@@ -3380,7 +3520,7 @@ details[open] > summary .node-line {
         };
         derTagName.textContent = Number.isSafeInteger(previewNode.tagNumber) && previewNode.tagNumber >= 0 ? getTagName(previewNode) : '';
       }
-      updateDerCreatePreview();
+      updateDerPreview();
     });
     
     derForm.addEventListener('click', (event) => {

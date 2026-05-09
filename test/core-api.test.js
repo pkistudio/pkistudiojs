@@ -113,6 +113,20 @@ test('documents editable viewer mode controls', () => {
   assert.match(readme, /setEditable\(false\)/);
 });
 
+test('documents DER inspector tag editing controls', () => {
+  const viewerSource = fs.readFileSync(path.join(rootDir, 'app/static/pkistudio.js'), 'utf8');
+  const readme = fs.readFileSync(path.join(rootDir, 'README.md'), 'utf8');
+
+  assert.match(viewerSource, /function validateNodeIdentifier\(node\) \{/);
+  assert.match(viewerSource, /function updateNodeIdentifier\(nodeId\) \{/);
+  assert.match(viewerSource, /PrintableString contains unsupported characters/);
+  assert.match(viewerSource, /input\[name="derClass"\]/);
+  assert.match(viewerSource, /\.der-value-preview\.der-value-error/);
+  assert.match(viewerSource, /submitButton\.disabled = isError \|\| !editable/);
+  assert.match(readme, /identifier class and tag index/);
+  assert.match(readme, /validates the current content against the selected universal tag/);
+});
+
 test('uses the configured new-window viewer URL when opening selected nodes', () => {
   const viewerSource = fs.readFileSync(path.join(rootDir, 'app/static/pkistudio.js'), 'utf8');
 
