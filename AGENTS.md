@@ -59,3 +59,11 @@ npm view @pkistudio/pkistudiojs version --json
 - Do not merge PRs unless the user explicitly asks to proceed.
 - After merge is explicitly approved and required versions, credentials, and checks are in place, proceed with tags, GitHub Releases, npm publication, workflow reruns, and post-publication verification without asking for separate confirmations unless something is blocked or ambiguous.
 - npm publication targets `@pkistudio/pkistudiojs` and should be verified after publishing with `npm view @pkistudio/pkistudiojs@<version> version dist-tags dist.tarball --json`.
+
+## GitHub Wiki Workflow
+
+- Treat the GitHub Wiki as a separate repository at `/workspaces/pkistudiojs.wiki` when it is available in Codespaces.
+- For Wiki content work, create or update Markdown pages and assets in the local Wiki repository, verify them with the local Gollum preview when practical, and commit the Wiki changes locally.
+- Do not push Wiki commits to `pkistudiojs.wiki` until the developer has reviewed the local preview or diff and explicitly asks to publish or push.
+- Before pushing Wiki changes, report the Wiki repository status and the local commits that are ahead of `origin/master`.
+- Keep main repository changes and Wiki repository changes separate unless the user explicitly asks for a coordinated update.
