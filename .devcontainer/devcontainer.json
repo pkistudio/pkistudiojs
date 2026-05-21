@@ -6,13 +6,18 @@
     "ghcr.io/devcontainers/features/git-lfs:1": {},
     "ghcr.io/devcontainers-extra/features/ripgrep:1": {}
   },
-  "forwardPorts": [8080],
+  "forwardPorts": [8080, 4567],
   "portsAttributes": {
     "8080": {
       "label": "pkistudio",
       "onAutoForward": "openPreview"
+    },
+    "4567": {
+      "label": "pkistudio wiki",
+      "onAutoForward": "openPreview"
     }
   },
+  "postCreateCommand": "bash .devcontainer/setup-wiki.sh",
   "customizations": {
     "vscode": {
       "extensions": [
