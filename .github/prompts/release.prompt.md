@@ -31,6 +31,7 @@ Default assumptions:
 - If no issue number is supplied, create a tracking issue first.
 - If an issue number is supplied, use that issue as the source of truth.
 - Create a branch from the issue, implement the requested change, verify it, push it, and open a PR.
+- Assess whether issue-level architectural decisions should be captured in ADRs under `docs/adr/`, ask the user before adding a new ADR unless they already requested one, and reference existing ADRs when relevant.
 - Use the PR body and issue comments to preserve the release rationale, release notes draft, verification results, and publication status.
 - Do not merge the PR until the user explicitly says to proceed.
 - After merge is explicitly approved and required versions, credentials, and checks are in place, continue through version bump, tagging, GitHub Release creation, npm publication or workflow rerun, and post-publication verification without asking for separate confirmations unless something is blocked or ambiguous.
@@ -60,6 +61,9 @@ Confirmation gate:
 - Do not merge the PR until the user confirms they have reviewed the behavior, unless the user explicitly asks to proceed without that confirmation.
 - After merge approval, do not add extra confirmation gates for release publication, npm publication, workflow reruns, or post-publication verification unless permissions, version choice, failed checks, or ambiguous release intent require user input.
 - Use existing repository patterns and keep changes focused on the requested issue.
+- Do not create ADRs for trivial implementation details, routine bug fixes, or decisions already covered by an existing ADR.
+- When adding or updating ADRs, use `docs/adr/0000-template.md` and keep the ADR focused on why the decision was made, alternatives considered, and expected consequences.
+- Do not add a new ADR solely on agent judgment without user confirmation, unless the user explicitly requested ADR creation in the invocation or issue discussion.
 - Use non-interactive git commands.
 
 ## Inputs
@@ -70,6 +74,7 @@ Derive these from the invocation when possible:
 - `issueNumber`: existing GitHub issue number when the invocation includes a `#<number>` reference or an unambiguous issue URL.
 - `summary`: short feature or fix summary.
 - `issueBody`: issue requirements. If the user supplied detailed requirements, preserve them.
+- `architectureDecision`: issue-level design decision, if the issue includes one that should be recorded in `docs/adr/`.
 - `verificationPlan`: expected local checks. If not supplied, infer from the changed area.
 
 ## Standard Record Templates
@@ -118,13 +123,25 @@ Closes #<issue-number>
    - Record the issue number for the branch, PR body, and final report.
    - Prefer GitHub tools when available. If the GitHub CLI is unavailable and `GITHUB_TOKEN` is set, use the GitHub REST API with `curl`. Never print token values.
 
-3. Create Branch
+3. Assess ADR Needs
+   - Review `docs/adr/` before implementation when the issue involves external dependencies, database or schema strategy, authentication or authorization, API design, cryptographic algorithms or key management, deployment architecture, runtime infrastructure, or major framework or library choices.
+   - If the issue introduces a meaningful architectural decision that is not already covered, ask the user whether to add a new ADR before implementation unless the user already requested one.
+   - When asking, briefly explain the suspected decision, why it may deserve an ADR, and the proposed ADR title. Keep the question concise.
+   - If the user confirms, add a new ADR under `docs/adr/` using `docs/adr/0000-template.md`.
+   - If the user declines, continue without an ADR and mention the decision in the PR body when useful.
+   - Number new ADRs sequentially and use a concise kebab-case filename such as `0001-preserve-commonjs-package-exports.md`.
+   - In the ADR, reference the source issue and any related ADRs in the `Related` section.
+   - If the implementation follows an existing ADR, mention that ADR in the PR body instead of creating a duplicate ADR.
+   - If the issue appears to conflict with an existing ADR, stop and ask how to proceed before implementing the conflicting change.
+
+4. Create Branch
    - Create a branch named `issue-<number>-<short-kebab-summary>`.
    - Switch to it before editing files.
 
-4. Implement
+5. Implement
    - Read the relevant files before editing.
    - Update app code and documentation for the requested behavior.
+   - Add or update ADR files identified during the ADR assessment, keeping them separate from implementation details.
    - If `version` is known and the change is release-worthy, update version references together.
    - If `version` is pending, leave existing released version references unchanged during implementation and note the deferred version bump in the issue and PR.
    - For pkistudio version bumps, update at least:
@@ -134,7 +151,7 @@ Closes #<issue-number>
      - `README.md` current version and any relevant feature documentation
    - Keep generated UI behavior consistent with the existing app style.
 
-5. Verify Locally
+6. Verify Locally
    - Run syntax or lint checks available in the repo. At minimum, for JavaScript-only changes run:
 
      ```sh
@@ -146,31 +163,32 @@ Closes #<issue-number>
    - For release candidates, run `npm pack --dry-run` and confirm the package contents are intentional.
    - Stop any verification server you started when done.
 
-6. Commit and Push
+7. Commit and Push
    - Review the diff and error list before committing.
    - Commit focused changes with a concise message.
    - Push the branch to `origin`.
 
-7. Open Pull Request
+8. Open Pull Request
    - Create a non-draft PR targeting `main` unless the user asks for a draft.
    - Include:
      - concise summary
      - notable implementation details
+     - ADR added, updated, or referenced, if applicable
      - verification commands and manual checks
      - `Fixes #<issue-number>`
    - Report the PR URL.
 
-8. Wait for User Confirmation
+9. Wait for User Confirmation
    - Ask the user to confirm their own manual check before merge/release.
    - If `version` is pending, ask the user to choose the final release version before continuing to merge/release steps that require version metadata.
    - When they say to proceed, continue.
 
-9. Merge PR
+10. Merge PR
    - Re-check PR status, review requirements, and local working tree.
    - Merge using the repository's preferred style. If no preference is known, use squash merge.
    - Confirm the issue closes automatically or report if it does not.
 
-10. Tag, Release, and Publish
+11. Tag, Release, and Publish
     - Switch to `main`, fetch, and fast-forward pull.
       - If `version` is pending, stop and ask for the final version before changing files, tagging, or publishing a release.
       - Once the final version is chosen, normalize it to both `X.Y.Z` and `vX.Y.Z` forms and check that the tag does not already exist.
@@ -190,7 +208,7 @@ Closes #<issue-number>
     - Mark it as the latest stable release, not draft and not prerelease, unless instructed otherwise.
       - After publication, verify `npm view @pkistudio/pkistudiojs@X.Y.Z version dist-tags dist.tarball --json` and, when practical, perform a fresh temporary install from npm and import the package entry points.
 
-11. Confirm Final State
+12. Confirm Final State
     - Verify:
       - PR is merged and closed.
       - issue is closed as completed.
