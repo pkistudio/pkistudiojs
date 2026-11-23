@@ -32,6 +32,7 @@
 - npm publish command in workflow: `npm publish --access public`
 - npm publication requires explicit user approval.
 - GitHub Release requires explicit user approval.
+- GitHub Release title/name pattern: `<version>`.
 - Stable published tags should have a GitHub Release marked as latest unless the user instructs otherwise.
 - WordPress post workflow: `.github/workflows/publish-release-to-wordpress.yml`
 - Bluesky post workflow: `.github/workflows/post-release-to-bluesky.yml`
@@ -41,6 +42,7 @@
 
 - Pages workflow: `.github/workflows/pages.yml`
 - Pages artifact path: `app/static`
+- Wiki source path in repository: `wikisrc/`
 - Wiki path in Codespaces: `/workspaces/pkistudiojs.wiki`
 - Keep Wiki work separate from main repository work unless explicitly requested.
 - Do not push Wiki commits until the user has reviewed the local preview or diff and explicitly asks to publish or push.
